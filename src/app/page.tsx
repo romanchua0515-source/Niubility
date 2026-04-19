@@ -60,7 +60,7 @@ export default async function Home() {
   const topSearchedTerms = topSearched.map(topSearchedToTerm);
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-x-hidden">
+    <div className="relative flex min-h-screen min-w-0 flex-col">
       <div
         className="pointer-events-none fixed inset-0 -z-10 bg-[#050506]"
         aria-hidden
@@ -79,7 +79,7 @@ export default async function Home() {
       <main className="relative mx-auto w-full max-w-7xl flex-1 px-4 pb-0 sm:px-6 lg:px-8">
         <section
           id="start"
-          className="flex min-h-[85vh] scroll-mt-24 items-center pt-6 sm:pt-7 md:scroll-mt-32 md:pt-8"
+          className="flex min-h-[85vh] scroll-mt-24 items-center py-16 md:scroll-mt-32"
         >
           <div className="grid w-full grid-cols-1 gap-8 lg:grid-cols-5 lg:items-stretch lg:gap-10">
             <div className="min-w-0 lg:col-span-3 lg:flex lg:flex-col lg:justify-center">
@@ -102,7 +102,7 @@ export default async function Home() {
 
         <EngageStrip />
 
-        <div className="pb-10 pt-10 sm:pt-12">
+        <div className="py-16">
           <SiteFooter />
         </div>
       </main>

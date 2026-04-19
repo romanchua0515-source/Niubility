@@ -63,6 +63,7 @@ const en = {
   homeFullIndex: "Full index",
 
   panelThisWeek: "This week",
+  panelUpdatedWeekly: "Updated every Monday",
   panelViewAll: "View all",
   panelCarouselPrevAria: "Previous tool",
   panelCarouselNextAria: "Next tool",
@@ -285,6 +286,7 @@ const zh: Record<keyof typeof en, string> = {
   homeFullIndex: "完整索引",
 
   panelThisWeek: "本周",
+  panelUpdatedWeekly: "每周一更新",
   panelViewAll: "查看全部",
   panelCarouselPrevAria: "上一个工具",
   panelCarouselNextAria: "下一个工具",

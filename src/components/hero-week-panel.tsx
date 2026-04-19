@@ -60,13 +60,13 @@ export function HeroWeekPanel({
   return (
     <aside
       className={[
-        "flex min-h-[22rem] flex-col rounded-xl border border-zinc-800/80 bg-zinc-900/45 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.03)_inset] lg:min-h-full lg:justify-between",
+        "flex h-full min-h-[22rem] flex-col justify-between rounded-xl border border-zinc-800/80 bg-zinc-900/45 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.03)_inset] sm:p-5",
         className,
       ]
         .filter(Boolean)
         .join(" ")}
     >
-      <div>
+      <div className="min-h-0 shrink-0">
         <div className="flex items-start justify-between gap-3 border-b border-zinc-800/70 pb-3">
           <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
             {t("panelThisWeek")}
@@ -83,7 +83,7 @@ export function HeroWeekPanel({
           </div>
         </div>
 
-        <ul className="mt-3 space-y-2 lg:mt-4">
+        <ul className="mt-3 space-y-3 lg:mt-4">
           {top3.map((item, i) => {
             const { title } = hotItemText(item, lang);
             return (
@@ -106,11 +106,11 @@ export function HeroWeekPanel({
         </ul>
       </div>
 
-      <div className="mt-4 border-t border-zinc-800/70 pt-3 lg:mt-auto">
+      <div className="mt-4 flex min-h-0 flex-1 flex-col border-t border-zinc-800/50 pt-4">
         <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
           {t("panelTopSearched")}
         </p>
-        <div className="mt-2 flex flex-wrap gap-1.5">
+        <div className="mt-3 flex flex-wrap gap-1.5">
           {topSearched.map((term) => (
             <Link
               key={term.q}
@@ -121,6 +121,9 @@ export function HeroWeekPanel({
             </Link>
           ))}
         </div>
+        <p className="mt-auto pt-4 text-xs text-zinc-600">
+          {t("panelUpdatedWeekly")}
+        </p>
       </div>
     </aside>
   );
