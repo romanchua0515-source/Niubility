@@ -11,7 +11,7 @@ const en = {
   navOpenMenu: "Open menu",
   navCloseMenu: "Close menu",
   navMenuLabel: "Site navigation",
-  heroEyebrow: "Web3 · AI hub",
+  heroEyebrow: "WEB3 · AI HUB",
   heroTitle: "Resource portal for builders & operators",
   heroSubtitle:
     "Search tools, roles, and signals in one place—wallets to job boards, research stacks, AI copilots, and security—curated for people who ship on-chain.",
@@ -233,7 +233,7 @@ const zh: Record<keyof typeof en, string> = {
   navOpenMenu: "打开菜单",
   navCloseMenu: "关闭菜单",
   navMenuLabel: "站点导航",
-  heroEyebrow: "Web3 · AI 导航",
+  heroEyebrow: "WEB3 · AI 导航",
   heroTitle: "面向建设者与运营者的资源门户",
   heroSubtitle:
     "在一处搜索工具、角色与信号——从钱包到招聘板、研究栈、AI 助手与安全资源，为链上交付者精选。",

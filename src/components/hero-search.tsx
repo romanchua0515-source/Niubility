@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type HeroSearchProps = {
   className?: string;
+  variant?: "default" | "hero";
   listings: DirectoryListing[];
   leafCategories: Category[];
 };
@@ -33,6 +34,7 @@ function subcategoryLabel(listing: DirectoryListing, lang: Lang): string {
 
 export function HeroSearch({
   className,
+  variant = "default",
   listings,
   leafCategories,
 }: HeroSearchProps) {
@@ -97,18 +99,34 @@ export function HeroSearch({
   );
 
   const showPanel = open && query.trim().length > 0;
+  const isHero = variant === "hero";
 
   return (
     <form
       onSubmit={submit}
-      className={["mt-5 w-full max-w-xl", className].filter(Boolean).join(" ")}
+      className={[
+        isHero ? "mt-6 w-full max-w-xl" : "mt-5 w-full max-w-xl",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
       role="search"
       aria-label={t("searchAriaLabel")}
     >
       <div ref={rootRef} className="relative">
-        <div className="group relative flex items-center gap-2.5 rounded-xl border border-zinc-800/90 bg-zinc-950/80 px-3 py-2 shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset] ring-emerald-500/0 transition-[box-shadow,border-color] focus-within:border-emerald-500/35 focus-within:ring-2 focus-within:ring-emerald-500/20 sm:gap-3 sm:px-4 sm:py-2.5">
+        <div
+          className={[
+            "group relative flex items-center rounded-xl border border-zinc-800/90 bg-zinc-950/80 shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset] ring-emerald-500/0 transition-[box-shadow,border-color] focus-within:border-emerald-500/35 focus-within:ring-2 focus-within:ring-emerald-500/20",
+            isHero
+              ? "gap-3 px-6 py-4 sm:gap-3.5"
+              : "gap-2.5 px-3 py-2 sm:gap-3 sm:px-4 sm:py-2.5",
+          ].join(" ")}
+        >
           <Search
-            className="h-5 w-5 shrink-0 text-zinc-500 transition-colors group-focus-within:text-emerald-400/90"
+            className={[
+              "shrink-0 text-zinc-500 transition-colors group-focus-within:text-emerald-400/90",
+              isHero ? "h-6 w-6" : "h-5 w-5",
+            ].join(" ")}
             strokeWidth={1.75}
             aria-hidden
           />
@@ -133,9 +151,19 @@ export function HeroSearch({
             aria-expanded={showPanel}
             aria-controls="hero-search-results"
             aria-autocomplete="list"
-            className="min-w-0 flex-1 bg-transparent text-sm text-zinc-100 placeholder:text-zinc-600 outline-none"
+            className={
+              isHero
+                ? "min-w-0 flex-1 bg-transparent text-lg text-zinc-100 placeholder:text-zinc-600 outline-none"
+                : "min-w-0 flex-1 bg-transparent text-sm text-zinc-100 placeholder:text-zinc-600 outline-none"
+            }
           />
-          <kbd className="hidden shrink-0 rounded-md border border-zinc-700/90 bg-zinc-900/80 px-2 py-1 font-mono text-[10px] font-medium text-zinc-500 sm:inline-block">
+          <kbd
+            className={
+              isHero
+                ? "hidden shrink-0 rounded-md border border-zinc-700/90 bg-zinc-900/80 px-2.5 py-1.5 font-mono text-xs font-medium text-zinc-500 sm:inline-block"
+                : "hidden shrink-0 rounded-md border border-zinc-700/90 bg-zinc-900/80 px-2 py-1 font-mono text-[10px] font-medium text-zinc-500 sm:inline-block"
+            }
+          >
             /
           </kbd>
         </div>

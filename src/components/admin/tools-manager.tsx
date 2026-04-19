@@ -7,6 +7,8 @@ import { ToolForm } from "@/components/admin/tool-form";
 import {
   AlertTriangle,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   ExternalLink,
   Minus,
   X,
@@ -19,6 +21,27 @@ import {
 type ToolsManagerProps = {
   initialTools: AdminToolView[];
 };
+
+const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
+
+/**
+ * Produces [1, …, current-2..current+2, …, total] with "..." gaps collapsed,
+ * and without duplicates for small totals.
+ */
+function getPageNumbers(current: number, total: number): (number | "ellipsis")[] {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  const pages: (number | "ellipsis")[] = [];
+  const windowStart = Math.max(2, current - 2);
+  const windowEnd = Math.min(total - 1, current + 2);
+  pages.push(1);
+  if (windowStart > 2) pages.push("ellipsis");
+  for (let i = windowStart; i <= windowEnd; i++) pages.push(i);
+  if (windowEnd < total - 1) pages.push("ellipsis");
+  pages.push(total);
+  return pages;
+}
 
 function formatChecked(iso: string | null): string {
   if (!iso) return "Never checked";
@@ -168,9 +191,29 @@ export function ToolsManager({ initialTools }: ToolsManagerProps) {
   const [tools, setTools] = useState(initialTools);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [pageSize, setPageSize] = useState<number>(20);
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const [showForm, setShowForm] = useState(false);
   const [reviewSlug, setReviewSlug] = useState<string | null>(null);
   const fetchTools = () => router.refresh();
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+  };
+  const handleCategoryChange = (value: string) => {
+    setCategoryFilter(value);
+    setCurrentPage(1);
+  };
+  const handlePageSizeChange = (value: number) => {
+    setPageSize(value);
+    setCurrentPage(1);
+  };
+  const handleClearFilters = () => {
+    setSearchQuery("");
+    setCategoryFilter("all");
+    setCurrentPage(1);
+  };
 
   useEffect(() => {
     setTools(initialTools);
@@ -207,6 +250,13 @@ export function ToolsManager({ initialTools }: ToolsManagerProps) {
   const reviewTool = reviewSlug
     ? tools.find((t) => t.slug === reviewSlug) ?? null
     : null;
+
+  const totalPages = Math.max(1, Math.ceil(otherTools.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const pageStart = (safePage - 1) * pageSize;
+  const pagedOtherTools = otherTools.slice(pageStart, pageStart + pageSize);
+  const pageNumbers = getPageNumbers(safePage, totalPages);
+  const showPagination = otherTools.length > pageSize;
 
   const renderRow = (tool: AdminToolView) => (
     <div
@@ -275,7 +325,7 @@ export function ToolsManager({ initialTools }: ToolsManagerProps) {
               id="admin-tools-search"
               type="search"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               placeholder="Search tools..."
               className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30"
             />
@@ -290,7 +340,7 @@ export function ToolsManager({ initialTools }: ToolsManagerProps) {
             <select
               id="admin-tools-category"
               value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
+              onChange={(e) => handleCategoryChange(e.target.value)}
               className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30"
             >
               <option value="all">All Categories</option>
@@ -304,13 +354,30 @@ export function ToolsManager({ initialTools }: ToolsManagerProps) {
           <p className="text-sm text-zinc-500">
             Showing {shownCount} of {totalCount} tools
           </p>
+          <div className="flex items-center gap-2">
+            <label
+              htmlFor="admin-tools-page-size"
+              className="text-xs text-zinc-500"
+            >
+              Per page
+            </label>
+            <select
+              id="admin-tools-page-size"
+              value={pageSize}
+              onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+              className="rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30"
+            >
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </div>
           {hasActiveFilters ? (
             <button
               type="button"
-              onClick={() => {
-                setSearchQuery("");
-                setCategoryFilter("all");
-              }}
+              onClick={handleClearFilters}
               className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-900/80 px-2.5 py-2 text-xs font-medium text-zinc-300 transition-colors hover:border-zinc-600 hover:text-zinc-100"
               aria-label="Clear filters"
             >
@@ -357,27 +424,87 @@ export function ToolsManager({ initialTools }: ToolsManagerProps) {
       )}
 
       {!(hasActiveFilters && totalCount > 0 && shownCount === 0) ? (
-        <div className="overflow-hidden rounded-xl border border-zinc-800/60">
-          <div className="grid grid-cols-[minmax(0,2.6fr)_minmax(0,1.6fr)_minmax(0,1.2fr)_minmax(0,1.4fr)] border-b border-zinc-800 bg-zinc-950 px-4 py-2 text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
-            <div>Name</div>
-            <div>Category</div>
-            <div>Health</div>
-            <div className="text-right">Flags</div>
-          </div>
-          {otherTools.length === 0 ? (
-            <p className="px-4 py-4 text-sm text-zinc-500">
-              {totalCount === 0
-                ? "No tools yet. Use “Add New Tool” to create your first entry."
-                : flaggedTools.length > 0
-                  ? "All matching tools are listed under Needs Review above."
-                  : "No tools match your filters in this section."}
-            </p>
-          ) : (
-            <div className="divide-y divide-zinc-800/80 text-sm">
-              {otherTools.map(renderRow)}
+        <>
+          <div className="overflow-hidden rounded-xl border border-zinc-800/60">
+            <div className="grid grid-cols-[minmax(0,2.6fr)_minmax(0,1.6fr)_minmax(0,1.2fr)_minmax(0,1.4fr)] border-b border-zinc-800 bg-zinc-950 px-4 py-2 text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
+              <div>Name</div>
+              <div>Category</div>
+              <div>Health</div>
+              <div className="text-right">Flags</div>
             </div>
-          )}
-        </div>
+            {otherTools.length === 0 ? (
+              <p className="px-4 py-4 text-sm text-zinc-500">
+                {totalCount === 0
+                  ? "No tools yet. Use “Add New Tool” to create your first entry."
+                  : flaggedTools.length > 0
+                    ? "All matching tools are listed under Needs Review above."
+                    : "No tools match your filters in this section."}
+              </p>
+            ) : (
+              <div className="divide-y divide-zinc-800/80 text-sm">
+                {pagedOtherTools.map(renderRow)}
+              </div>
+            )}
+          </div>
+
+          {showPagination ? (
+            <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={safePage === 1}
+                className="inline-flex items-center gap-1 rounded-lg bg-zinc-800 px-3 py-1.5 text-sm text-zinc-400 transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-zinc-800"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </button>
+
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1">
+                  {pageNumbers.map((p, i) =>
+                    p === "ellipsis" ? (
+                      <span
+                        key={`ellipsis-${i}`}
+                        className="px-2 text-sm text-zinc-500"
+                      >
+                        …
+                      </span>
+                    ) : (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setCurrentPage(p)}
+                        aria-current={p === safePage ? "page" : undefined}
+                        className={
+                          p === safePage
+                            ? "min-w-[2rem] rounded-lg bg-emerald-500 px-2.5 py-1.5 text-sm font-medium text-zinc-950"
+                            : "min-w-[2rem] rounded-lg bg-zinc-800 px-2.5 py-1.5 text-sm text-zinc-400 transition-colors hover:bg-zinc-700"
+                        }
+                      >
+                        {p}
+                      </button>
+                    ),
+                  )}
+                </div>
+                <span className="text-xs text-zinc-500">
+                  Page {safePage} of {totalPages}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
+                disabled={safePage === totalPages}
+                className="inline-flex items-center gap-1 rounded-lg bg-zinc-800 px-3 py-1.5 text-sm text-zinc-400 transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-zinc-800"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          ) : null}
+        </>
       ) : null}
 
       {showForm && (

@@ -1,6 +1,5 @@
 "use client";
 
-import { HeroQuickActions } from "@/components/hero-quick-actions";
 import { HeroSearch } from "@/components/hero-search";
 import { useLanguage } from "@/context/LanguageContext";
 import type { Category, DirectoryListing } from "@/types/data";
@@ -15,17 +14,20 @@ export function HomeHeroIntro({ listings, leafCategories }: HomeHeroIntroProps) 
 
   return (
     <div className="min-w-0">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-400/90">
+      <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400">
         {t("heroEyebrow")}
       </p>
-      <h1 className="mt-2 max-w-xl text-2xl font-semibold leading-tight tracking-tight text-zinc-50 sm:text-3xl sm:leading-tight md:text-[2rem] md:leading-tight">
+      <h1 className="mt-4 max-w-xl text-5xl font-bold leading-tight tracking-tight text-zinc-100 md:text-6xl lg:text-7xl">
         {t("heroTitle")}
       </h1>
-      <p className="mt-3 max-w-xl text-sm leading-relaxed text-zinc-400 md:text-base md:leading-relaxed">
+      <p className="mt-4 max-w-xl text-lg leading-relaxed text-zinc-400">
         {t("heroSubtitle")}
       </p>
-      <HeroSearch listings={listings} leafCategories={leafCategories} />
-      <HeroQuickActions />
+      <HeroSearch
+        listings={listings}
+        leafCategories={leafCategories}
+        variant="hero"
+      />
     </div>
   );
 }

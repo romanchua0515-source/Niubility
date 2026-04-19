@@ -79,16 +79,22 @@ export default async function Home() {
       <main className="relative mx-auto w-full max-w-6xl flex-1 px-4 pb-0 sm:px-6">
         <section
           id="start"
-          className="scroll-mt-24 grid grid-cols-1 gap-6 pt-6 sm:gap-7 sm:pt-7 md:scroll-mt-32 md:grid-cols-12 md:gap-8 md:pt-8 lg:gap-8 lg:pt-8"
+          className="flex min-h-screen scroll-mt-24 items-center pt-6 sm:pt-7 md:scroll-mt-32 md:pt-8"
         >
-          <div className="min-w-0 md:col-span-7">
-            <HomeHeroIntro
-              listings={listings}
-              leafCategories={leafCategories}
-            />
-          </div>
-          <div className="min-w-0 md:col-span-5 md:pt-1 lg:pt-1">
-            <HeroWeekPanel trends={trends} topSearched={topSearchedTerms} />
+          <div className="grid w-full grid-cols-1 gap-8 lg:grid-cols-5 lg:items-stretch lg:gap-10">
+            <div className="min-w-0 lg:col-span-3 lg:flex lg:flex-col lg:justify-center">
+              <HomeHeroIntro
+                listings={listings}
+                leafCategories={leafCategories}
+              />
+            </div>
+            <div className="min-w-0 lg:col-span-2 lg:flex lg:min-h-0">
+              <HeroWeekPanel
+                className="w-full lg:h-full"
+                trends={trends}
+                topSearched={topSearchedTerms}
+              />
+            </div>
           </div>
         </section>
 
