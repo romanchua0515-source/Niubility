@@ -62,15 +62,6 @@ export function RolesManager({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">
-          Role Pages
-        </h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Manage sections that power each role landing page.
-        </p>
-      </div>
-
       <div className="grid gap-6 lg:grid-cols-[minmax(0,200px)_minmax(0,1fr)]">
         <aside className="rounded-xl border border-zinc-800/60 bg-zinc-900/50">
           <div className="border-b border-zinc-800 bg-zinc-950 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">

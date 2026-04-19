@@ -269,16 +269,6 @@ export function BannersConsole({ initialListings }: BannersConsoleProps) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">
-          Banners & ads
-        </h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Featured homepage carousel: pick directory tools, publish sponsored
-          banners with image upload, and control carousel order.
-        </p>
-      </div>
-
       {globalError ? (
         <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
           {globalError}

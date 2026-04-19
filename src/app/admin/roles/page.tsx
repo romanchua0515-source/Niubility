@@ -30,10 +30,20 @@ export default async function AdminRolesPage({
   const sections = await getAdminRolePageSections(selected);
 
   return (
-    <RolesManager
-      roleSlugs={[...ROLE_SLUGS]}
-      selectedSlug={selected}
-      initialSections={sections}
-    />
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">
+          Role Pages
+        </h1>
+        <p className="mt-1 text-sm text-zinc-500">
+          Manage sections that power each role landing page.
+        </p>
+      </div>
+      <RolesManager
+        roleSlugs={[...ROLE_SLUGS]}
+        selectedSlug={selected}
+        initialSections={sections}
+      />
+    </div>
   );
 }

@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
 import { Check, Loader2, Play, Upload, X } from "lucide-react";
 
 type GeneratedTool = {
@@ -28,13 +27,6 @@ const CATEGORY_OPTIONS = [
   "jobs",
   "media-community",
 ] as const;
-
-function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
 
 type FormState = {
   name: string;
@@ -68,35 +60,34 @@ function toFormState(tool: GeneratedTool): FormState {
   };
 }
 
-function buildInsertPayload(tool: GeneratedTool): Record<string, unknown> {
-  const payload: Record<string, unknown> = {
-    slug: slugify(tool.name),
-    name: tool.name,
-    description: tool.description,
-    description_zh: tool.description_zh || null,
-    best_for: tool.best_for || "TBD",
-    best_for_zh: tool.best_for_zh || null,
-    pricing: tool.pricing,
-    tags: Array.isArray(tool.tags) ? tool.tags : [],
-    category_slug: tool.category_slug,
-    subcategory_slug: tool.subcategory_slug || "ai-tools",
-    website_url: tool.website_url,
-    affiliate_url: null,
-    is_featured: false,
-    featured_order: 0,
-    is_hot: false,
-    hot_order: 0,
-    is_quick_pick: false,
-    quick_pick_order: 0,
-  };
-  // Only include name_zh when the AI actually produced one. If the column
-  // is missing from the DB schema, omitting the key means Supabase never
-  // tries to write to it (instead of failing the whole insert with
-  // "Could not find the 'name_zh' column").
-  if (typeof tool.name_zh === "string" && tool.name_zh.trim().length > 0) {
-    payload.name_zh = tool.name_zh.trim();
+/**
+ * POST /api/import-tool with { action: "publish", ...toolData }.
+ * The server inserts via the service-role client, bypassing RLS.
+ * Returns { ok: true } on success, or throws with the server's error message.
+ */
+async function publishViaApi(tool: GeneratedTool & { affiliate_url?: string }) {
+  const res = await fetch("/api/import-tool", {
+    method: "POST",
+    credentials: "include",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action: "publish", ...tool }),
+  });
+  const data = (await res.json().catch(() => null)) as
+    | { ok?: boolean; error?: string; detail?: string; existing_name?: string }
+    | null;
+  if (res.status === 409) {
+    const msg = data?.existing_name
+      ? `Already exists: ${data.existing_name}`
+      : "Already exists";
+    const err = new Error(msg) as Error & { isDuplicate: true };
+    err.isDuplicate = true;
+    throw err;
   }
-  return payload;
+  if (!res.ok || !data?.ok) {
+    throw new Error(
+      data?.detail ?? data?.error ?? `Publish failed (${res.status})`,
+    );
+  }
 }
 
 type Tab = "single" | "batch";
@@ -237,7 +228,11 @@ function SinglePanel({ onPublished, onBack }: SinglePanelProps) {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name: trimmedName, url: trimmedUrl }),
+        body: JSON.stringify({
+          action: "generate",
+          name: trimmedName,
+          url: trimmedUrl,
+        }),
       });
       const data = (await res.json().catch(() => null)) as
         | (GeneratedTool & {
@@ -272,49 +267,39 @@ function SinglePanel({ onPublished, onBack }: SinglePanelProps) {
   async function handlePublish() {
     if (!form) return;
     setError(null);
+    setDuplicate(null);
     setPublishing(true);
     try {
       const tags = form.tags
         .split(",")
         .map((t) => t.trim())
         .filter((t) => t.length > 0);
-      const payload: Record<string, unknown> = {
-        slug: slugify(form.name),
+      await publishViaApi({
         name: form.name,
+        name_zh: form.name_zh,
         description: form.description,
-        description_zh: form.description_zh || null,
-        best_for: form.best_for || "TBD",
-        best_for_zh: form.best_for_zh || null,
+        description_zh: form.description_zh,
+        best_for: form.best_for,
+        best_for_zh: form.best_for_zh,
         pricing: form.pricing,
         tags,
         category_slug: form.category_slug,
-        subcategory_slug: form.subcategory_slug || "ai-tools",
+        subcategory_slug: form.subcategory_slug,
         website_url: form.website_url,
-        affiliate_url: form.affiliate_url || null,
-        is_featured: false,
-        featured_order: 0,
-        is_hot: false,
-        hot_order: 0,
-        is_quick_pick: false,
-        quick_pick_order: 0,
-      };
-      // Only include name_zh when the admin filled it in — omitting the key
-      // keeps the insert working even if the column is missing from the DB.
-      if (form.name_zh && form.name_zh.trim().length > 0) {
-        payload.name_zh = form.name_zh.trim();
-      }
-      const { error: dbError } = await supabase.from("tools").insert(payload);
-      if (dbError) {
-        setError(dbError.message);
-        return;
-      }
+        affiliate_url: form.affiliate_url,
+      });
       setPublishedName(form.name);
       setForm(null);
       setUrl("");
       setToolName("");
       onPublished();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      if (e instanceof Error && (e as Error & { isDuplicate?: true }).isDuplicate) {
+        setDuplicate(msg.replace(/^Already exists: /, ""));
+      } else {
+        setError(msg);
+      }
     } finally {
       setPublishing(false);
     }
@@ -517,7 +502,7 @@ function BatchPanel({ onDone }: BatchPanelProps) {
           method: "POST",
           credentials: "include",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ checkOnly: true, url: row.url }),
+          body: JSON.stringify({ action: "checkOnly", url: row.url }),
         });
         const checkData = (await checkRes.json().catch(() => null)) as
           | { existing_name?: string; error?: string; detail?: string }
@@ -557,13 +542,18 @@ function BatchPanel({ onDone }: BatchPanelProps) {
         continue;
       }
 
-      // Step 2: generate + auto-publish.
+      // Step 2: generate + auto-publish (publish goes through the server
+      // route so the insert runs with the service role and bypasses RLS).
       try {
         const genRes = await fetch("/api/import-tool", {
           method: "POST",
           credentials: "include",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ name: row.name, url: row.url }),
+          body: JSON.stringify({
+            action: "generate",
+            name: row.name,
+            url: row.url,
+          }),
         });
         const genData = (await genRes.json().catch(() => null)) as
           | (GeneratedTool & { error?: string; detail?: string })
@@ -592,22 +582,26 @@ function BatchPanel({ onDone }: BatchPanelProps) {
           continue;
         }
 
-        const payload = buildInsertPayload({
-          ...genData,
-          website_url: row.url,
-        });
-        const { error: dbError } = await supabase
-          .from("tools")
-          .insert(payload);
-        if (dbError) {
-          updateRow(row.id, { status: "failed", message: dbError.message });
-          failed += 1;
-        } else {
+        try {
+          await publishViaApi({ ...genData, website_url: row.url });
           updateRow(row.id, {
             status: "published",
             message: genData.name,
           });
           published += 1;
+        } catch (publishErr) {
+          const publishMsg =
+            publishErr instanceof Error ? publishErr.message : "Publish failed";
+          const isDup =
+            publishErr instanceof Error &&
+            (publishErr as Error & { isDuplicate?: true }).isDuplicate === true;
+          if (isDup) {
+            updateRow(row.id, { status: "skipped", message: publishMsg });
+            skipped += 1;
+          } else {
+            updateRow(row.id, { status: "failed", message: publishMsg });
+            failed += 1;
+          }
         }
       } catch (e) {
         updateRow(row.id, {

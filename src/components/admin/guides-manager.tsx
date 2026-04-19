@@ -82,16 +82,7 @@ export function GuidesManager({ initialGuides }: GuidesManagerProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">
-            Guides
-          </h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            Dynamic blocks (scam prevention, roadmaps, resources, workflows) for
-            guide pages.
-          </p>
-        </div>
+      <div className="flex items-center justify-end gap-3">
         <button
           type="button"
           onClick={() => {

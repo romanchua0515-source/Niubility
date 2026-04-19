@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { Pencil, Trash2, X } from "lucide-react";
@@ -26,6 +26,18 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+function compareWeekLabelsDesc(a: string, b: string): number {
+  const parse = (s: string) => {
+    const m = /^(\d{4})-W(\d{2})$/.exec(s.trim());
+    if (!m) return [0, 0] as const;
+    return [Number(m[1]), Number(m[2])] as const;
+  };
+  const [ay, aw] = parse(a);
+  const [by, bw] = parse(b);
+  if (ay !== by) return by - ay;
+  return bw - aw;
+}
+
 const typeBadgeClass: Record<(typeof SIGNAL_TYPES)[number], string> = {
   TOPIC: "border-emerald-400/50 bg-emerald-400/10 text-emerald-400",
   TOOL: "border-blue-400/50 bg-blue-400/10 text-blue-400",
@@ -36,10 +48,43 @@ type SignalsManagerProps = {
   initialSignals: Signal[];
 };
 
+function defaultWeekFilter(signals: Signal[]): string | "__all__" {
+  const uniq = [...new Set(signals.map((s) => s.weekLabel))];
+  uniq.sort(compareWeekLabelsDesc);
+  return uniq[0] ?? "__all__";
+}
+
 export function SignalsManager({ initialSignals }: SignalsManagerProps) {
   const router = useRouter();
   const [editing, setEditing] = useState<Signal | null>(null);
   const [showForm, setShowForm] = useState(false);
+
+  const weekChoices = useMemo(() => {
+    const uniq = [...new Set(initialSignals.map((s) => s.weekLabel))];
+    uniq.sort(compareWeekLabelsDesc);
+    return uniq;
+  }, [initialSignals]);
+
+  const [weekFilter, setWeekFilter] = useState<string | "__all__">(() =>
+    defaultWeekFilter(initialSignals),
+  );
+
+  useEffect(() => {
+    if (
+      weekFilter !== "__all__" &&
+      weekChoices.length > 0 &&
+      !weekChoices.includes(weekFilter)
+    ) {
+      setWeekFilter(weekChoices[0] ?? "__all__");
+    }
+  }, [weekChoices, weekFilter]);
+
+  const visibleSignals = useMemo(() => {
+    if (weekFilter === "__all__") {
+      return initialSignals;
+    }
+    return initialSignals.filter((s) => s.weekLabel === weekFilter);
+  }, [initialSignals, weekFilter]);
 
   async function handleToggleActive(signal: Signal) {
     const { error } = await supabase
@@ -68,14 +113,33 @@ export function SignalsManager({ initialSignals }: SignalsManagerProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">
-            Signals
-          </h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            Weekly signals shown on the homepage and /signals page.
-          </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label
+              htmlFor="signals-week-filter"
+              className="block text-xs font-medium text-zinc-500"
+            >
+              Week
+            </label>
+            <select
+              id="signals-week-filter"
+              value={weekFilter}
+              onChange={(e) =>
+                setWeekFilter(
+                  e.target.value === "__all__" ? "__all__" : e.target.value,
+                )
+              }
+              className="mt-1 min-w-[10rem] rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30"
+            >
+              <option value="__all__">All weeks</option>
+              {weekChoices.map((w) => (
+                <option key={w} value={w}>
+                  {w}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
         <button
           type="button"
@@ -83,7 +147,7 @@ export function SignalsManager({ initialSignals }: SignalsManagerProps) {
             setEditing(null);
             setShowForm(true);
           }}
-          className="inline-flex items-center justify-center rounded-lg border border-emerald-500/70 bg-emerald-500/90 px-3 py-2 text-sm font-medium text-emerald-950 transition-colors hover:bg-emerald-400"
+          className="inline-flex shrink-0 items-center justify-center rounded-lg border border-emerald-500/70 bg-emerald-500/90 px-3 py-2 text-sm font-medium text-emerald-950 transition-colors hover:bg-emerald-400"
         >
           Add Signal
         </button>
@@ -101,9 +165,14 @@ export function SignalsManager({ initialSignals }: SignalsManagerProps) {
           <p className="px-4 py-4 text-sm text-zinc-500">
             No signals yet. Use &quot;Add Signal&quot; to create your first entry.
           </p>
+        ) : visibleSignals.length === 0 ? (
+          <p className="px-4 py-4 text-sm text-zinc-500">
+            No signals for this week filter. Choose &quot;All weeks&quot; or
+            another week to see entries.
+          </p>
         ) : (
           <div className="divide-y divide-zinc-800/80 text-sm">
-            {initialSignals.map((signal) => (
+            {visibleSignals.map((signal) => (
               <div
                 key={signal.id}
                 className="grid grid-cols-[minmax(0,3fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,1fr)] items-center px-4 py-2.5 hover:bg-zinc-900/60"
