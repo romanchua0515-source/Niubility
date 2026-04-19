@@ -1,12 +1,15 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import {
+  ADMIN_COOKIE,
+  ADMIN_COOKIE_OPTIONS,
+  ADMIN_COOKIE_VALUE,
+} from "@/lib/admin-auth";
 
 type LoginPageProps = {
   searchParams?: Promise<{ error?: string }>;
 };
-
-const ADMIN_COOKIE = "admin_auth";
 
 async function loginAction(formData: FormData) {
   "use server";
@@ -19,13 +22,7 @@ async function loginAction(formData: FormData) {
   }
 
   const cookieStore = await cookies();
-  cookieStore.set(ADMIN_COOKIE, "true", {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
+  cookieStore.set(ADMIN_COOKIE, ADMIN_COOKIE_VALUE, ADMIN_COOKIE_OPTIONS);
 
   redirect("/admin");
 }
