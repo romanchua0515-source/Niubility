@@ -17,8 +17,8 @@ import {
   roleText,
   roleToolGroupTitle,
 } from "@/i18n/localized";
-import type { Category } from "@/data/categories";
-import { roles } from "@/data/roles";
+import type { Category } from "@/types/data";
+import { roles } from "@/lib/roles";
 import type { RolePageDetail } from "@/types/role-page";
 import Link from "next/link";
 

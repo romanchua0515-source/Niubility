@@ -2,7 +2,7 @@
 
 import { useLanguage } from "@/context/LanguageContext";
 import { roleText } from "@/i18n/localized";
-import { roles } from "@/data/roles";
+import { roles } from "@/lib/roles";
 import Link from "next/link";
 
 type RolePagePlaceholderProps = {

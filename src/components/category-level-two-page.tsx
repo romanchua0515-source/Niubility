@@ -4,14 +4,13 @@ import { FeaturedToolCard } from "@/components/featured-tool-card";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { useLanguage } from "@/context/LanguageContext";
-import type { ExploreCategory } from "@/data/categories";
-import { directoryListingToFeaturedTool } from "@/data/featured-tools";
+import type { DirectoryListing, ExploreCategory } from "@/types/data";
 import {
+  directoryListingToFeaturedTool,
   getListingsByCategory,
   leafSlugToListingCategory,
   listingsForExploreSubSlugs,
-  type DirectoryListing,
-} from "@/data/listings";
+} from "@/lib/listing-utils";
 import { getExploreCategoryIcon } from "@/lib/category-metadata";
 import { exploreCategoryText, exploreSubcategoryLabel } from "@/i18n/localized";
 import Image from "next/image";

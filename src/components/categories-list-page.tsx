@@ -4,7 +4,7 @@ import { ExploreCategoryCard } from "@/components/explore-category-card";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { useLanguage } from "@/context/LanguageContext";
-import type { ExploreCategory } from "@/data/categories";
+import type { ExploreCategory } from "@/types/data";
 import Link from "next/link";
 
 type CategoriesListPageProps = {

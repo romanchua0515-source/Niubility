@@ -1,7 +1,6 @@
 "use client";
 
-import type { HotItem } from "@/data/hot-this-week";
-import { topSearched } from "@/data/top-searched";
+import type { HotItem, TopSearchTerm } from "@/types/data";
 import { useLanguage } from "@/context/LanguageContext";
 import { hotItemText, topSearchLabel } from "@/i18n/localized";
 import { ArrowUpRight, Flame } from "lucide-react";
@@ -9,9 +8,10 @@ import Link from "next/link";
 
 type HeroWeekPanelProps = {
   trends: HotItem[];
+  topSearched: TopSearchTerm[];
 };
 
-export function HeroWeekPanel({ trends }: HeroWeekPanelProps) {
+export function HeroWeekPanel({ trends, topSearched }: HeroWeekPanelProps) {
   const { t, lang } = useLanguage();
   const top3 = trends.slice(0, 3);
 

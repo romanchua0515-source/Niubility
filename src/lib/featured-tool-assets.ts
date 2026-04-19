@@ -1,4 +1,4 @@
-import type { FeaturedTool } from "@/data/featured-tools";
+import type { FeaturedTool } from "@/types/data";
 
 /** Primary logo URL; falls back to Google favicon service from tool href hostname */
 export function featuredToolLogoSrc(tool: FeaturedTool): string {

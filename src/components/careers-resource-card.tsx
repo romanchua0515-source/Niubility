@@ -1,7 +1,7 @@
 "use client";
 
 import { useLanguage } from "@/context/LanguageContext";
-import type { CareersResource } from "@/data/job-careers";
+import type { CareersResource } from "@/types/data";
 
 type CareersResourceCardProps = {
   resource: CareersResource;

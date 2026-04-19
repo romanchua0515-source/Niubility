@@ -2,7 +2,7 @@
 
 import { useLanguage } from "@/context/LanguageContext";
 import { hotItemText } from "@/i18n/localized";
-import type { HotItem } from "@/data/hot-this-week";
+import type { HotItem } from "@/types/data";
 import { Flame } from "lucide-react";
 
 type HotThisWeekProps = {

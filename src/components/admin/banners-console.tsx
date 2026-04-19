@@ -2,11 +2,8 @@
 
 import { AdBannerForm } from "@/components/admin/ad-banner-form";
 import { HeroToolCarousel } from "@/components/hero-tool-carousel";
-import type { DirectoryListing, ListingCategory } from "@/data/listings";
-import {
-  directoryListingToFeaturedTool,
-  type FeaturedTool,
-} from "@/data/featured-tools";
+import type { DirectoryListing, FeaturedTool, ListingCategory } from "@/types/data";
+import { directoryListingToFeaturedTool } from "@/lib/listing-utils";
 import { supabase } from "@/lib/supabase";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";

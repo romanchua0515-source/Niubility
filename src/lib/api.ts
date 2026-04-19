@@ -1,13 +1,14 @@
 import { cache } from "react";
-import { directoryListingToFeaturedTool } from "@/data/featured-tools";
-import type { FeaturedTool } from "@/data/featured-tools";
-import {
-  filterListingsByQuery,
-  type DirectoryListing,
-  type ListingCategory,
-  type RoleTag,
-} from "@/data/listings";
-import type { Category, ExploreCategory } from "@/data/categories";
+import { directoryListingToFeaturedTool } from "@/lib/listing-utils";
+import { filterListingsByQuery } from "@/lib/search";
+import type {
+  Category,
+  DirectoryListing,
+  ExploreCategory,
+  FeaturedTool,
+  ListingCategory,
+  RoleTag,
+} from "@/types/data";
 import { supabase } from "@/lib/supabase";
 import {
   exploreCategoryDescription,
@@ -45,6 +46,14 @@ type ToolRow = {
   is_featured: boolean;
   featured_order?: number | null;
   banner_image_url?: string | null;
+  is_hot?: boolean | null;
+  hot_order?: number | null;
+  is_quick_pick?: boolean | null;
+  quick_pick_order?: number | null;
+  health_status?: "healthy" | "flagged" | "unknown" | null;
+  health_fail_count?: number | null;
+  health_last_checked?: string | null;
+  health_last_failure?: string | null;
 };
 
 const USE_CASE_SEP = "\n\nUse case: ";
@@ -350,3 +359,444 @@ async function loadAdminCategoryList(): Promise<AdminCategoryListItem[]> {
 }
 
 export const getAdminCategoryList = cache(loadAdminCategoryList);
+
+// =============================================================================
+// Static-data-migrated getters: signals, hot tools, quick picks, role sections,
+// job careers, top searched. Public reads via the anon client.
+// =============================================================================
+
+async function loadToolsByFlag(
+  flagColumn: "is_hot" | "is_quick_pick",
+  orderColumn: "hot_order" | "quick_pick_order",
+): Promise<DirectoryListing[]> {
+  const { data: tools, error } = await supabase
+    .from("tools")
+    .select("*")
+    .eq(flagColumn, true)
+    .order(orderColumn, { ascending: true });
+  if (error) throw error;
+
+  const { data: subs } = await supabase
+    .from("subcategories")
+    .select("slug, name, name_zh");
+  const subMap = new Map((subs ?? []).map((s) => [s.slug, s] as const));
+
+  return (tools ?? []).map((raw) => {
+    const row = raw as ToolRow;
+    const sub = subMap.get(row.subcategory_slug);
+    return rowToDirectoryListing(row, sub?.name, sub?.name_zh);
+  });
+}
+
+export const getHotThisWeek = cache(() =>
+  loadToolsByFlag("is_hot", "hot_order"),
+);
+
+export const getQuickPicks = cache(() =>
+  loadToolsByFlag("is_quick_pick", "quick_pick_order"),
+);
+
+export type HealthStatus = "healthy" | "flagged" | "unknown";
+
+export type AdminToolView = DirectoryListing & {
+  isHot: boolean;
+  hotOrder: number;
+  isQuickPick: boolean;
+  quickPickOrder: number;
+  healthStatus: HealthStatus;
+  healthFailCount: number;
+  healthLastChecked: string | null;
+  healthLastFailure: string | null;
+};
+
+export async function getAdminTools(): Promise<AdminToolView[]> {
+  const { data: tools, error: e1 } = await supabase.from("tools").select("*");
+  if (e1) throw e1;
+  const { data: subs, error: e2 } = await supabase
+    .from("subcategories")
+    .select("slug, name, name_zh");
+  if (e2) throw e2;
+
+  const subMap = new Map((subs ?? []).map((s) => [s.slug, s] as const));
+
+  const mapped = (tools ?? []).map((raw) => {
+    const row = raw as ToolRow;
+    const sub = subMap.get(row.subcategory_slug);
+    const base = rowToDirectoryListing(row, sub?.name, sub?.name_zh);
+    return {
+      ...base,
+      isHot: row.is_hot ?? false,
+      hotOrder: row.hot_order ?? 0,
+      isQuickPick: row.is_quick_pick ?? false,
+      quickPickOrder: row.quick_pick_order ?? 0,
+      healthStatus: (row.health_status ?? "unknown") as HealthStatus,
+      healthFailCount: row.health_fail_count ?? 0,
+      healthLastChecked: row.health_last_checked ?? null,
+      healthLastFailure: row.health_last_failure ?? null,
+    } as AdminToolView;
+  });
+
+  mapped.sort((a, b) => {
+    if (a.isFeatured !== b.isFeatured) return a.isFeatured ? -1 : 1;
+    if (a.isFeatured && b.isFeatured) {
+      return (a.featuredOrder ?? 0) - (b.featuredOrder ?? 0);
+    }
+    return a.name.localeCompare(b.name);
+  });
+
+  return mapped;
+}
+
+export type Signal = {
+  id: string;
+  title: string;
+  titleZh: string;
+  description: string;
+  descriptionZh: string;
+  type: "TOPIC" | "TOOL" | "RESOURCE";
+  weekLabel: string;
+  displayOrder: number;
+  isActive: boolean;
+  createdAt: string;
+};
+
+type SignalRow = {
+  id: string;
+  title: string;
+  title_zh: string;
+  description: string;
+  description_zh: string;
+  type: "TOPIC" | "TOOL" | "RESOURCE";
+  week_label: string;
+  display_order: number;
+  is_active: boolean;
+  created_at: string;
+};
+
+function rowToSignal(row: SignalRow): Signal {
+  return {
+    id: row.id,
+    title: row.title,
+    titleZh: row.title_zh,
+    description: row.description,
+    descriptionZh: row.description_zh,
+    type: row.type,
+    weekLabel: row.week_label,
+    displayOrder: row.display_order,
+    isActive: row.is_active,
+    createdAt: row.created_at,
+  };
+}
+
+export async function getSignals(weekLabel?: string): Promise<Signal[]> {
+  let targetWeek = weekLabel;
+  if (!targetWeek) {
+    const { data: latest, error: latestErr } = await supabase
+      .from("signals")
+      .select("week_label")
+      .eq("is_active", true)
+      .order("week_label", { ascending: false })
+      .limit(1);
+    if (latestErr) throw latestErr;
+    targetWeek = latest?.[0]?.week_label;
+    if (!targetWeek) return [];
+  }
+
+  const { data, error } = await supabase
+    .from("signals")
+    .select("*")
+    .eq("is_active", true)
+    .eq("week_label", targetWeek)
+    .order("display_order", { ascending: true });
+  if (error) throw error;
+
+  return ((data ?? []) as SignalRow[]).map(rowToSignal);
+}
+
+export type RolePageSection = {
+  id: string;
+  roleSlug: string;
+  sectionType: "hero" | "tool_group" | "workflow" | "resource";
+  title: string;
+  titleZh: string;
+  description: string | null;
+  descriptionZh: string | null;
+  toolSlugs: string[];
+  displayOrder: number;
+  isActive: boolean;
+  createdAt: string;
+};
+
+type RolePageSectionRow = {
+  id: string;
+  role_slug: string;
+  section_type: "hero" | "tool_group" | "workflow" | "resource";
+  title: string;
+  title_zh: string;
+  description: string | null;
+  description_zh: string | null;
+  tool_slugs: string[];
+  display_order: number;
+  is_active: boolean;
+  created_at: string;
+};
+
+function rowToRolePageSection(row: RolePageSectionRow): RolePageSection {
+  return {
+    id: row.id,
+    roleSlug: row.role_slug,
+    sectionType: row.section_type,
+    title: row.title,
+    titleZh: row.title_zh,
+    description: row.description,
+    descriptionZh: row.description_zh,
+    toolSlugs: row.tool_slugs ?? [],
+    displayOrder: row.display_order,
+    isActive: row.is_active,
+    createdAt: row.created_at,
+  };
+}
+
+export async function getRolePageSections(
+  roleSlug: string,
+): Promise<RolePageSection[]> {
+  const { data, error } = await supabase
+    .from("role_page_sections")
+    .select("*")
+    .eq("role_slug", roleSlug)
+    .eq("is_active", true)
+    .order("display_order", { ascending: true });
+  if (error) throw error;
+
+  return ((data ?? []) as RolePageSectionRow[]).map(rowToRolePageSection);
+}
+
+export type JobCareer = {
+  id: string;
+  title: string;
+  titleZh: string;
+  company: string;
+  companyZh: string | null;
+  location: string | null;
+  url: string;
+  tags: string[];
+  displayOrder: number;
+  isActive: boolean;
+  createdAt: string;
+};
+
+type JobCareerRow = {
+  id: string;
+  title: string;
+  title_zh: string;
+  company: string;
+  company_zh: string | null;
+  location: string | null;
+  url: string;
+  tags: string[];
+  display_order: number;
+  is_active: boolean;
+  created_at: string;
+};
+
+function rowToJobCareer(row: JobCareerRow): JobCareer {
+  return {
+    id: row.id,
+    title: row.title,
+    titleZh: row.title_zh,
+    company: row.company,
+    companyZh: row.company_zh,
+    location: row.location,
+    url: row.url,
+    tags: row.tags ?? [],
+    displayOrder: row.display_order,
+    isActive: row.is_active,
+    createdAt: row.created_at,
+  };
+}
+
+export async function getJobCareers(): Promise<JobCareer[]> {
+  const { data, error } = await supabase
+    .from("job_careers")
+    .select("*")
+    .eq("is_active", true)
+    .order("display_order", { ascending: true });
+  if (error) throw error;
+
+  return ((data ?? []) as JobCareerRow[]).map(rowToJobCareer);
+}
+
+export type TopSearched = {
+  id: string;
+  label: string;
+  labelZh: string;
+  query: string;
+  displayOrder: number;
+  isActive: boolean;
+};
+
+type TopSearchedRow = {
+  id: string;
+  label: string;
+  label_zh: string;
+  query: string;
+  display_order: number;
+  is_active: boolean;
+};
+
+function rowToTopSearched(row: TopSearchedRow): TopSearched {
+  return {
+    id: row.id,
+    label: row.label,
+    labelZh: row.label_zh,
+    query: row.query,
+    displayOrder: row.display_order,
+    isActive: row.is_active,
+  };
+}
+
+export async function getTopSearched(): Promise<TopSearched[]> {
+  const { data, error } = await supabase
+    .from("top_searched")
+    .select("*")
+    .eq("is_active", true)
+    .order("display_order", { ascending: true });
+  if (error) throw error;
+
+  return ((data ?? []) as TopSearchedRow[]).map(rowToTopSearched);
+}
+
+// Admin-facing getters (no is_active filter — admin manages inactive rows too).
+export async function getAdminSignals(): Promise<Signal[]> {
+  const { data, error } = await supabase
+    .from("signals")
+    .select("*")
+    .order("week_label", { ascending: false })
+    .order("display_order", { ascending: true });
+  if (error) throw error;
+  return ((data ?? []) as SignalRow[]).map(rowToSignal);
+}
+
+export async function getAdminRolePageSections(
+  roleSlug: string,
+): Promise<RolePageSection[]> {
+  const { data, error } = await supabase
+    .from("role_page_sections")
+    .select("*")
+    .eq("role_slug", roleSlug)
+    .order("display_order", { ascending: true });
+  if (error) throw error;
+  return ((data ?? []) as RolePageSectionRow[]).map(rowToRolePageSection);
+}
+
+export async function getAdminJobCareers(): Promise<JobCareer[]> {
+  const { data, error } = await supabase
+    .from("job_careers")
+    .select("*")
+    .order("display_order", { ascending: true });
+  if (error) throw error;
+  return ((data ?? []) as JobCareerRow[]).map(rowToJobCareer);
+}
+
+// =============================================================================
+// People + Guides
+// =============================================================================
+
+export type Person = {
+  id: string;
+  name: string;
+  name_zh: string | null;
+  avatar_url: string | null;
+  role: string;
+  bio: string;
+  bio_zh: string;
+  twitter_url: string | null;
+  linkedin_url: string | null;
+  website_url: string | null;
+  notable_work: string;
+  notable_work_zh: string;
+  is_featured: boolean;
+  display_order: number;
+  is_active: boolean;
+  created_at: string;
+};
+
+export type Guide = {
+  id: string;
+  guide_slug: string;
+  category: string;
+  title: string;
+  title_zh: string;
+  content: string;
+  content_zh: string;
+  display_order: number;
+  is_active: boolean;
+  created_at: string;
+};
+
+export async function getFeaturedPeople(): Promise<Person[]> {
+  const { data, error } = await supabase
+    .from("people")
+    .select("*")
+    .eq("is_featured", true)
+    .eq("is_active", true)
+    .order("display_order", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as Person[];
+}
+
+export async function getPeopleByRole(role: string): Promise<Person[]> {
+  const { data, error } = await supabase
+    .from("people")
+    .select("*")
+    .eq("role", role)
+    .eq("is_active", true)
+    .order("display_order", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as Person[];
+}
+
+export async function getAdminPeople(): Promise<Person[]> {
+  const { data, error } = await supabase
+    .from("people")
+    .select("*")
+    .order("display_order", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as Person[];
+}
+
+export async function getGuidesBySlug(slug: string): Promise<Guide[]> {
+  const { data, error } = await supabase
+    .from("guides")
+    .select("*")
+    .eq("guide_slug", slug)
+    .eq("is_active", true)
+    .order("display_order", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as Guide[];
+}
+
+export async function getGuidesByCategory(
+  slug: string,
+  category: string,
+): Promise<Guide[]> {
+  const { data, error } = await supabase
+    .from("guides")
+    .select("*")
+    .eq("guide_slug", slug)
+    .eq("category", category)
+    .eq("is_active", true)
+    .order("display_order", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as Guide[];
+}
+
+export async function getAdminGuides(): Promise<Guide[]> {
+  const { data, error } = await supabase
+    .from("guides")
+    .select("*")
+    .order("guide_slug", { ascending: true })
+    .order("display_order", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as Guide[];
+}

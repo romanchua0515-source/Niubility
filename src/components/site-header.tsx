@@ -4,13 +4,14 @@ import { LanguageSwitcher } from "@/components/language-switcher";
 import { PortalNav } from "@/components/portal-nav";
 import { UserLibraryDrawer } from "@/components/user-library-drawer";
 import { useLanguage } from "@/context/LanguageContext";
-import { Bookmark } from "lucide-react";
+import { Bookmark, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
 export function SiteHeader() {
   const { t } = useLanguage();
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
     <>
@@ -26,7 +27,7 @@ export function SiteHeader() {
               </span>
             </Link>
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <span className="hidden text-xs text-zinc-500 sm:inline">
+              <span className="hidden text-xs text-zinc-500 md:inline">
                 {t("headerTagline")}
               </span>
               <button
@@ -39,11 +40,53 @@ export function SiteHeader() {
                 <Bookmark className="h-4 w-4" strokeWidth={2} />
               </button>
               <LanguageSwitcher />
+              <button
+                type="button"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-800/85 bg-zinc-950/70 text-zinc-400 transition-colors hover:border-zinc-700 hover:bg-zinc-900/80 hover:text-emerald-300/90 md:hidden"
+                aria-expanded={mobileNavOpen}
+                aria-controls="site-mobile-nav"
+                aria-label={mobileNavOpen ? t("navCloseMenu") : t("navOpenMenu")}
+                onClick={() => setMobileNavOpen((o) => !o)}
+              >
+                {mobileNavOpen ? (
+                  <X className="h-4 w-4" strokeWidth={2} />
+                ) : (
+                  <Menu className="h-4 w-4" strokeWidth={2} />
+                )}
+              </button>
             </div>
           </div>
-          <PortalNav />
+          <div className="hidden border-t border-zinc-800/40 md:block">
+            <PortalNav />
+          </div>
         </div>
       </header>
+      {mobileNavOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex flex-col bg-black/80 backdrop-blur-sm md:hidden"
+          id="site-mobile-nav"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t("navMenuLabel")}
+        >
+          <div className="flex h-14 shrink-0 items-center justify-end border-b border-zinc-800/60 bg-zinc-950/95 px-4 sm:px-6">
+            <button
+              type="button"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-800/85 bg-zinc-950/70 text-zinc-400 transition-colors hover:border-zinc-700 hover:bg-zinc-900/80 hover:text-emerald-300/90"
+              aria-label={t("navCloseMenu")}
+              onClick={() => setMobileNavOpen(false)}
+            >
+              <X className="h-4 w-4" strokeWidth={2} />
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto bg-zinc-950/90 px-4 pb-8 pt-2 sm:px-6">
+            <PortalNav
+              orientation="vertical"
+              onLinkClick={() => setMobileNavOpen(false)}
+            />
+          </div>
+        </div>
+      ) : null}
       <UserLibraryDrawer
         open={libraryOpen}
         onClose={() => setLibraryOpen(false)}

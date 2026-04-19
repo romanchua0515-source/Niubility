@@ -2,7 +2,7 @@
 
 import { useUserState } from "@/context/UserStateContext";
 import { useLanguage } from "@/context/LanguageContext";
-import type { FeaturedTool } from "@/data/featured-tools";
+import type { FeaturedTool } from "@/types/data";
 import { featuredToolFaviconFallback, featuredToolLogoSrc } from "@/lib/featured-tool-assets";
 import { getFeaturedBookmarkKey } from "@/lib/bookmarks";
 import { ArrowUpRight, ChevronLeft, ChevronRight } from "lucide-react";

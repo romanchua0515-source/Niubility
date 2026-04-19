@@ -8,6 +8,9 @@ const en = {
   navCategories: "Categories",
   navSignals: "Signals",
   navSubmit: "Submit",
+  navOpenMenu: "Open menu",
+  navCloseMenu: "Close menu",
+  navMenuLabel: "Site navigation",
   heroEyebrow: "Web3 · AI hub",
   heroTitle: "Resource portal for builders & operators",
   heroSubtitle:
@@ -21,6 +24,8 @@ const en = {
   langOptionEn: "English (US)",
   langOptionZh: "简体中文 (ZH)",
   visitCta: "Visit",
+  toolModalVisit: "Visit Tool",
+  toolModalClose: "Close",
   bestForLabel: "Best for:",
   openCta: "Open",
   quickExploreTools: "Explore Tools",
@@ -124,6 +129,22 @@ const en = {
   pageSearchEmptyHint:
     "Enter a query from the homepage to search tools, categories, and roles.",
 
+  searchPageInputPlaceholder: "Search tools, people, guides...",
+  searchFilterAll: "All",
+  searchFilterTools: "Tools",
+  searchFilterPeople: "People",
+  searchFilterGuides: "Guides",
+  searchSectionTools: "Tools",
+  searchSectionPeople: "People",
+  searchSectionGuides: "Guides",
+  searchResultsCount: '{{count}} results for "{{q}}"',
+  searchEmptyNoResults: 'No results for "{{q}}"',
+  searchEmptySuggestion:
+    "Try searching for a tool category or role",
+  searchPopularLabel: "Popular searches",
+  searchClearInputAria: "Clear search",
+  searchFilterRowAria: "Filter results by type",
+
   categoriesTaxonomyEyebrow: "Taxonomy",
   categoriesPageTitle: "All categories",
   categoriesPageSubtitle:
@@ -209,6 +230,9 @@ const zh: Record<keyof typeof en, string> = {
   navCategories: "分类",
   navSignals: "动态",
   navSubmit: "提交",
+  navOpenMenu: "打开菜单",
+  navCloseMenu: "关闭菜单",
+  navMenuLabel: "站点导航",
   heroEyebrow: "Web3 · AI 导航",
   heroTitle: "面向建设者与运营者的资源门户",
   heroSubtitle:
@@ -222,6 +246,8 @@ const zh: Record<keyof typeof en, string> = {
   langOptionEn: "English (US)",
   langOptionZh: "简体中文 (ZH)",
   visitCta: "访问",
+  toolModalVisit: "访问工具",
+  toolModalClose: "关闭",
   bestForLabel: "适合：",
   openCta: "打开",
   quickExploreTools: "探索工具",
@@ -321,6 +347,21 @@ const zh: Record<keyof typeof en, string> = {
   searchResultPending: "「{{q}}」的搜索结果将在索引接入后展示。",
   pageSearchEmptyHint:
     "从首页输入查询，可搜索工具、分类与角色。",
+
+  searchPageInputPlaceholder: "搜索工具、人物、指南...",
+  searchFilterAll: "全部",
+  searchFilterTools: "工具",
+  searchFilterPeople: "人物",
+  searchFilterGuides: "指南",
+  searchSectionTools: "工具",
+  searchSectionPeople: "人物",
+  searchSectionGuides: "指南",
+  searchResultsCount: "「{{q}}」共 {{count}} 条结果",
+  searchEmptyNoResults: "没有找到「{{q}}」的结果",
+  searchEmptySuggestion: "试试搜索工具分类或角色",
+  searchPopularLabel: "热门搜索",
+  searchClearInputAria: "清除搜索",
+  searchFilterRowAria: "按类型筛选结果",
 
   categoriesTaxonomyEyebrow: "分类体系",
   categoriesPageTitle: "全部分类",

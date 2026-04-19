@@ -17,6 +17,11 @@ const schema = z.object({
   websiteUrl: z.string().url("Enter a valid website URL"),
   affiliateUrl: z.string().url().optional().or(z.literal("")),
   isFeatured: z.boolean(),
+  featuredOrder: z.number().int().min(0),
+  isHot: z.boolean(),
+  hotOrder: z.number().int().min(0),
+  isQuickPick: z.boolean(),
+  quickPickOrder: z.number().int().min(0),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -52,8 +57,17 @@ export function ToolForm({ onCreated, onSuccess }: ToolFormProps) {
       websiteUrl: "",
       affiliateUrl: "",
       isFeatured: false,
+      featuredOrder: 0,
+      isHot: false,
+      hotOrder: 0,
+      isQuickPick: false,
+      quickPickOrder: 0,
     },
   });
+
+  const isFeaturedVal = watch("isFeatured");
+  const isHotVal = watch("isHot");
+  const isQuickPickVal = watch("isQuickPick");
 
   const nameValue = watch("name");
 
@@ -76,6 +90,11 @@ export function ToolForm({ onCreated, onSuccess }: ToolFormProps) {
         website_url: values.websiteUrl,
         affiliate_url: values.affiliateUrl || null,
         is_featured: values.isFeatured,
+        featured_order: values.featuredOrder,
+        is_hot: values.isHot,
+        hot_order: values.hotOrder,
+        is_quick_pick: values.isQuickPick,
+        quick_pick_order: values.quickPickOrder,
         // Reasonable defaults for required fields so Roman doesn't see DB errors.
         best_for: "TBD",
         best_for_zh: null,
@@ -197,25 +216,108 @@ export function ToolForm({ onCreated, onSuccess }: ToolFormProps) {
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-3 rounded-lg border border-zinc-800/80 bg-zinc-900/40 px-3 py-2.5">
-        <div>
-          <p className="text-xs font-medium text-zinc-200">
-            Feature this tool (Banner)
-          </p>
-          <p className="text-[11px] text-zinc-500">
-            When enabled, this tool can show up in hero carousels.
-          </p>
+      <div className="space-y-3 rounded-lg border border-zinc-800/80 bg-zinc-900/40 p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-medium text-zinc-200">
+              Feature this tool (Banner)
+            </p>
+            <p className="text-[11px] text-zinc-500">
+              When enabled, this tool can show up in hero carousels.
+            </p>
+          </div>
+          <label className="inline-flex cursor-pointer items-center">
+            <input
+              type="checkbox"
+              {...register("isFeatured")}
+              className="peer sr-only"
+            />
+            <span className="h-5 w-9 rounded-full bg-zinc-700 transition peer-checked:bg-emerald-500/80">
+              <span className="relative left-0.5 top-0.5 block h-4 w-4 rounded-full bg-zinc-950 transition peer-checked:translate-x-4" />
+            </span>
+          </label>
         </div>
-        <label className="inline-flex cursor-pointer items-center">
-          <input
-            type="checkbox"
-            {...register("isFeatured")}
-            className="peer sr-only"
-          />
-          <span className="h-5 w-9 rounded-full bg-zinc-700 transition peer-checked:bg-emerald-500/80">
-            <span className="relative left-0.5 top-0.5 block h-4 w-4 rounded-full bg-zinc-950 transition peer-checked:translate-x-4" />
-          </span>
-        </label>
+        {isFeaturedVal && (
+          <div className="space-y-1">
+            <label className="block text-[11px] font-medium text-zinc-400">
+              Featured order (lower = earlier)
+            </label>
+            <input
+              type="number"
+              min={0}
+              {...register("featuredOrder", { valueAsNumber: true })}
+              className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-emerald-500/70"
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-3 rounded-lg border border-zinc-800/80 bg-zinc-900/40 p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-medium text-zinc-200">Hot this week</p>
+            <p className="text-[11px] text-zinc-500">
+              Surface this tool in the hot-this-week block.
+            </p>
+          </div>
+          <label className="inline-flex cursor-pointer items-center">
+            <input
+              type="checkbox"
+              {...register("isHot")}
+              className="peer sr-only"
+            />
+            <span className="h-5 w-9 rounded-full bg-zinc-700 transition peer-checked:bg-emerald-500/80">
+              <span className="relative left-0.5 top-0.5 block h-4 w-4 rounded-full bg-zinc-950 transition peer-checked:translate-x-4" />
+            </span>
+          </label>
+        </div>
+        {isHotVal && (
+          <div className="space-y-1">
+            <label className="block text-[11px] font-medium text-zinc-400">
+              Hot order (lower = earlier)
+            </label>
+            <input
+              type="number"
+              min={0}
+              {...register("hotOrder", { valueAsNumber: true })}
+              className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-emerald-500/70"
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-3 rounded-lg border border-zinc-800/80 bg-zinc-900/40 p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-medium text-zinc-200">Quick pick</p>
+            <p className="text-[11px] text-zinc-500">
+              Shortlist this tool as a homepage quick pick.
+            </p>
+          </div>
+          <label className="inline-flex cursor-pointer items-center">
+            <input
+              type="checkbox"
+              {...register("isQuickPick")}
+              className="peer sr-only"
+            />
+            <span className="h-5 w-9 rounded-full bg-zinc-700 transition peer-checked:bg-emerald-500/80">
+              <span className="relative left-0.5 top-0.5 block h-4 w-4 rounded-full bg-zinc-950 transition peer-checked:translate-x-4" />
+            </span>
+          </label>
+        </div>
+        {isQuickPickVal && (
+          <div className="space-y-1">
+            <label className="block text-[11px] font-medium text-zinc-400">
+              Quick pick order (lower = earlier)
+            </label>
+            <input
+              type="number"
+              min={0}
+              {...register("quickPickOrder", { valueAsNumber: true })}
+              className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-emerald-500/70"
+            />
+          </div>
+        )}
       </div>
 
       {error && (

@@ -4,15 +4,60 @@ import { HomeHeroIntro } from "@/components/home-hero-intro";
 import { HeroWeekPanel } from "@/components/hero-week-panel";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { hotThisWeek } from "@/data/hot-this-week";
-import { getFeaturedTools, getLeafCategories, getTools } from "@/lib/api";
+import {
+  getFeaturedTools,
+  getLeafCategories,
+  getSignals,
+  getTools,
+  getTopSearched,
+  type Signal,
+  type TopSearched,
+} from "@/lib/api";
+import { buildBilingualPageMetadata } from "@/lib/seo-metadata";
+import type { HotItem, TopSearchTerm } from "@/types/data";
+import type { Metadata } from "next";
+
+export async function generateMetadata(): Promise<Metadata> {
+  return buildBilingualPageMetadata({
+    path: "/",
+    enTitle: "Niubility — Web3 & AI Tools Hub",
+    enDescription:
+      "Curated Web3 and AI tools for builders, traders, researchers and operators. Find the right stack for your workflow.",
+    zhTitle: "Niubility — Web3 与 AI 工具聚合平台",
+    zhDescription:
+      "为 Web3 从业者精选的 AI 与链上工具，覆盖交易、研究、运营、开发全场景。",
+  });
+}
+
+function signalToHotItem(s: Signal): HotItem {
+  const kind: HotItem["kind"] =
+    s.type === "TOPIC" ? "Topic" : s.type === "TOOL" ? "Tool" : "Resource";
+  return {
+    id: s.id,
+    title: s.title,
+    titleZh: s.titleZh,
+    context: s.description,
+    contextZh: s.descriptionZh,
+    kind,
+  };
+}
+
+function topSearchedToTerm(t: TopSearched): TopSearchTerm {
+  return { label: t.label, labelZh: t.labelZh, q: t.query };
+}
 
 export default async function Home() {
-  const [featuredTools, listings, leafCategories] = await Promise.all([
-    getFeaturedTools(),
-    getTools(),
-    getLeafCategories(),
-  ]);
+  const [featuredTools, listings, leafCategories, signals, topSearched] =
+    await Promise.all([
+      getFeaturedTools(),
+      getTools(),
+      getLeafCategories(),
+      getSignals().catch(() => [] as Signal[]),
+      getTopSearched().catch(() => [] as TopSearched[]),
+    ]);
+
+  const trends = signals.map(signalToHotItem);
+  const topSearchedTerms = topSearched.map(topSearchedToTerm);
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-x-hidden">
@@ -34,14 +79,16 @@ export default async function Home() {
       <main className="relative mx-auto w-full max-w-6xl flex-1 px-4 pb-0 sm:px-6">
         <section
           id="start"
-          className="scroll-mt-32 grid gap-6 pt-6 lg:grid-cols-12 lg:gap-8 lg:pt-8"
+          className="scroll-mt-24 grid grid-cols-1 gap-5 pt-5 sm:gap-6 sm:pt-6 md:scroll-mt-32 md:grid-cols-12 md:gap-7 md:pt-7 lg:gap-8 lg:pt-8"
         >
-          <HomeHeroIntro
-            listings={listings}
-            leafCategories={leafCategories}
-          />
-          <div className="lg:col-span-5 lg:pt-1">
-            <HeroWeekPanel trends={hotThisWeek} />
+          <div className="min-w-0 md:col-span-7">
+            <HomeHeroIntro
+              listings={listings}
+              leafCategories={leafCategories}
+            />
+          </div>
+          <div className="min-w-0 md:col-span-5 md:pt-1 lg:pt-1">
+            <HeroWeekPanel trends={trends} topSearched={topSearchedTerms} />
           </div>
         </section>
 

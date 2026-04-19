@@ -2,8 +2,8 @@
 
 import { useLanguage } from "@/context/LanguageContext";
 import type { Lang } from "@/i18n/dictionary";
-import type { Category } from "@/data/categories";
-import { filterListingsByQuery, type DirectoryListing } from "@/data/listings";
+import type { Category, DirectoryListing } from "@/types/data";
+import { filterListingsByQuery } from "@/lib/search";
 import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";

@@ -1,6 +1,6 @@
 "use client";
 
-import type { DirectoryListing } from "@/data/listings";
+import type { DirectoryListing } from "@/types/data";
 import { setBookmarkListings } from "@/lib/bookmarks";
 
 export function BookmarkCatalogInit({

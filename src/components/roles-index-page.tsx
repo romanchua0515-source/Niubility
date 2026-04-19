@@ -4,7 +4,7 @@ import { RoleCard } from "@/components/role-card";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { useLanguage } from "@/context/LanguageContext";
-import { roles } from "@/data/roles";
+import { roles } from "@/lib/roles";
 import Link from "next/link";
 
 export function RolesIndexPage() {

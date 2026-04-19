@@ -1,16 +1,17 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import { CareersResourceCard } from "@/components/careers-resource-card";
 import { DirectoryListingCard } from "@/components/directory-listing-card";
+import { ToolDetailModal } from "@/components/tool-detail-modal";
 import { useLanguage } from "@/context/LanguageContext";
 import { categoryText } from "@/i18n/localized";
-import type { Category } from "@/data/categories";
+import type { Category, CareersModule, CareersResource, DirectoryListing } from "@/types/data";
 import { getLeafCategoryIcon } from "@/lib/category-metadata";
 import {
   jobsAndCareersFeatured,
   jobsAndCareersModules,
-} from "@/data/job-careers";
-import type { DirectoryListing } from "@/data/listings";
+} from "@/lib/job-careers";
 import Link from "next/link";
 
 type CategoryDetailPageProps = {
@@ -25,6 +26,10 @@ export function CategoryDetailPage({
   category,
 }: CategoryDetailPageProps) {
   const { t, lang } = useLanguage();
+  const [selectedTool, setSelectedTool] = useState<DirectoryListing | null>(
+    null,
+  );
+  const closeToolModal = useCallback(() => setSelectedTool(null), []);
 
   const { title, description } = categoryText(category, lang);
   const Icon = getLeafCategoryIcon(category.slug);
@@ -131,7 +136,11 @@ export function CategoryDetailPage({
               </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {allListings.map((listing) => (
-                  <DirectoryListingCard key={listing.slug} listing={listing} />
+                  <DirectoryListingCard
+                    key={listing.slug}
+                    listing={listing}
+                    onClick={() => setSelectedTool(listing)}
+                  />
                 ))}
               </div>
             </section>
@@ -142,6 +151,8 @@ export function CategoryDetailPage({
           </p>
         )}
       </main>
+
+      <ToolDetailModal tool={selectedTool} onClose={closeToolModal} />
     </div>
   );
 }

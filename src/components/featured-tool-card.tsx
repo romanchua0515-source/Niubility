@@ -2,7 +2,7 @@
 
 import { useLanguage } from "@/context/LanguageContext";
 import { useUserState } from "@/context/UserStateContext";
-import type { FeaturedTool } from "@/data/featured-tools";
+import type { FeaturedTool } from "@/types/data";
 import { getFeaturedBookmarkKey } from "@/lib/bookmarks";
 import { ArrowUpRight, Bookmark } from "lucide-react";
 

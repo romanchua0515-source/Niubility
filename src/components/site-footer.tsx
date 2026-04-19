@@ -15,8 +15,8 @@ export function SiteFooter() {
 
   return (
     <footer className="border-t border-zinc-800/60 bg-zinc-950/40">
-      <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
-        <div className="flex flex-col gap-10 sm:flex-row sm:items-start sm:justify-between">
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12 md:py-14">
+        <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between md:gap-10">
           <div className="max-w-sm space-y-3">
             <div className="flex items-center gap-2.5">
               <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400/20 to-violet-500/20 ring-1 ring-white/10">
@@ -29,7 +29,7 @@ export function SiteFooter() {
             <p className="text-sm leading-relaxed text-zinc-500">{t("footerBlurb")}</p>
           </div>
           <nav
-            className="flex flex-col gap-3 sm:items-end"
+            className="flex flex-col gap-3 md:items-end"
             aria-label="Footer"
           >
             {linkKeys.map((link) => (
@@ -43,7 +43,7 @@ export function SiteFooter() {
             ))}
           </nav>
         </div>
-        <div className="mt-12 flex flex-col gap-2 border-t border-zinc-800/60 pt-8 text-xs text-zinc-600 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-8 flex flex-col gap-2 border-t border-zinc-800/60 pt-6 text-xs text-zinc-600 sm:mt-10 sm:pt-7 md:mt-12 md:flex-row md:items-center md:justify-between md:pt-8">
           <span>
             © {new Date().getFullYear()} Niubility. {t("footerCopyright")}
           </span>

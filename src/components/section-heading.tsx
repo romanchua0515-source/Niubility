@@ -18,7 +18,7 @@ export function SectionHeading({
   compact = false,
   action,
 }: SectionHeadingProps) {
-  const wrap = compact ? "mb-5" : "mb-10";
+  const wrap = compact ? "mb-6" : "mb-8";
   const titleCls = compact
     ? "text-lg font-semibold tracking-tight text-zinc-100 sm:text-xl"
     : "text-2xl font-semibold tracking-tight text-zinc-100 sm:text-3xl";
@@ -26,8 +26,8 @@ export function SectionHeading({
     ? "text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-400/85"
     : "text-xs font-semibold uppercase tracking-[0.22em] text-emerald-400/85";
   const descCls = compact
-    ? "text-xs leading-relaxed text-zinc-500 sm:text-sm"
-    : "text-sm leading-relaxed text-zinc-500 sm:text-base";
+    ? "text-xs leading-relaxed text-zinc-400 sm:text-sm"
+    : "text-sm leading-relaxed text-zinc-400 sm:text-base";
 
   if (action) {
     return (

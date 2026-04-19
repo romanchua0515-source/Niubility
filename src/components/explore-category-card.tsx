@@ -1,7 +1,7 @@
 "use client";
 
 import { useLanguage } from "@/context/LanguageContext";
-import type { ExploreCategory } from "@/data/categories";
+import type { ExploreCategory } from "@/types/data";
 import { exploreCategoryText } from "@/i18n/localized";
 import { getExploreCategoryIcon } from "@/lib/category-metadata";
 import Image from "next/image";

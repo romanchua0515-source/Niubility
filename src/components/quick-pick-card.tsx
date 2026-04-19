@@ -1,6 +1,6 @@
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
-import type { QuickPick } from "@/data/quick-picks";
+import type { QuickPick } from "@/types/data";
 
 type QuickPickCardProps = {
   pick: QuickPick;

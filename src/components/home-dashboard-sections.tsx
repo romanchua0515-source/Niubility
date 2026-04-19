@@ -5,12 +5,12 @@ import { HeroToolCarousel } from "@/components/hero-tool-carousel";
 import { RoleCard } from "@/components/role-card";
 import { SectionHeading } from "@/components/section-heading";
 import { useLanguage } from "@/context/LanguageContext";
-import type { FeaturedTool } from "@/data/featured-tools";
-import { roles } from "@/data/roles";
+import type { FeaturedTool } from "@/types/data";
+import { roles } from "@/lib/roles";
 import Link from "next/link";
 
 const panel =
-  "rounded-xl border border-zinc-800/80 bg-zinc-900/35 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02)_inset]";
+  "rounded-xl border border-zinc-800/80 bg-zinc-900/35 p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.02)_inset] sm:p-4";
 
 type HomeDashboardSectionsProps = {
   featuredTools: FeaturedTool[];
@@ -20,25 +20,28 @@ export function HomeDashboardSections({ featuredTools }: HomeDashboardSectionsPr
   const { t } = useLanguage();
 
   return (
-    <div className="mt-8 space-y-6 border-t border-zinc-800/60 pt-8">
-      <section id="roles" className={`scroll-mt-32 ${panel}`}>
+    <div className="mt-6 space-y-5 border-t border-zinc-800/60 pt-6 sm:mt-8 sm:space-y-6 sm:pt-8">
+      <section
+        id="roles"
+        className={`scroll-mt-24 sm:scroll-mt-28 md:scroll-mt-32 ${panel}`}
+      >
         <SectionHeading
           compact
           eyebrow={t("homeRolesEyebrow")}
           title={t("homeRolesTitle")}
           description={t("homeRolesDesc")}
         />
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {roles.map((role) => (
             <RoleCard key={role.slug} role={role} compact />
           ))}
         </div>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-stretch">
+      <div className="grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-2 md:items-stretch lg:gap-6">
         <section
           id="tools"
-          className={`scroll-mt-32 flex h-full min-h-0 flex-col ${panel}`}
+          className={`scroll-mt-24 sm:scroll-mt-28 md:scroll-mt-32 flex h-full min-h-0 flex-col ${panel}`}
         >
           <SectionHeading
             compact
@@ -46,7 +49,7 @@ export function HomeDashboardSections({ featuredTools }: HomeDashboardSectionsPr
             title={t("homeToolsTitle")}
             description={t("homeToolsDesc")}
           />
-          <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {featuredTools.map((tool) => (
               <FeaturedToolCard key={tool.id} tool={tool} />
             ))}
@@ -55,7 +58,7 @@ export function HomeDashboardSections({ featuredTools }: HomeDashboardSectionsPr
 
         <section
           id="categories"
-          className={`scroll-mt-32 flex h-full min-h-0 flex-col ${panel}`}
+          className={`scroll-mt-24 sm:scroll-mt-28 md:scroll-mt-32 flex h-full min-h-0 flex-col ${panel}`}
         >
           <SectionHeading
             compact

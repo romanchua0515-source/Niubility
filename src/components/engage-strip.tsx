@@ -17,33 +17,33 @@ export function EngageStrip() {
     <div className="mt-10 w-full">
       <div className="overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-900/45 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.03)_inset,0_1px_0_0_rgba(255,255,255,0.04)_inset] sm:p-7 md:px-8 md:py-7">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
-          <div className="max-w-md shrink-0">
+          <div className="min-w-0 max-w-md shrink-0">
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-400/85">
               {t("engageEyebrow")}
             </p>
             <h2 className="mt-1.5 text-lg font-semibold tracking-tight text-zinc-100">
               {t("engageTitle")}
             </h2>
-            <p className="mt-1 text-sm leading-relaxed text-zinc-500">
+            <p className="mt-1 text-sm leading-relaxed text-zinc-400">
               {t("engageDesc")}
             </p>
           </div>
-          <div className="flex min-w-0 flex-1 flex-col gap-3 sm:items-end">
+          <div className="flex min-w-0 w-full flex-1 flex-col gap-3 sm:w-auto sm:items-end">
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
               {primary.map(({ href, key, icon: Icon }) => (
                 <Link
                   key={href}
                   href={href}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-700 bg-zinc-950/60 px-4 py-2.5 text-sm font-medium text-zinc-200 transition-colors hover:border-emerald-500/35 hover:bg-zinc-900/80 hover:text-white"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 py-2.5 text-sm font-medium text-emerald-950 transition-colors hover:bg-emerald-400 sm:w-auto"
                 >
                   <Icon
-                    className="h-4 w-4 text-zinc-500"
+                    className="h-4 w-4 text-emerald-950/80"
                     strokeWidth={2}
                     aria-hidden
                   />
                   {t(key)}
                   <ArrowRight
-                    className="h-3.5 w-3.5 text-zinc-600"
+                    className="h-3.5 w-3.5 text-emerald-950/70"
                     aria-hidden
                   />
                 </Link>

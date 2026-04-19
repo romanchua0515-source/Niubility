@@ -1,4 +1,3 @@
-import { notFound } from "next/navigation";
 import { CategoryDetailPage } from "@/components/category-detail-page";
 import { CategoryLevelTwoPage } from "@/components/category-level-two-page";
 import {
@@ -8,10 +7,42 @@ import {
   getListingsForExploreParent,
   getListingsForLeaf,
 } from "@/lib/api";
+import { buildBilingualPageMetadata } from "@/lib/seo-metadata";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
 };
+
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const path = `/categories/${slug}`;
+  const explore = await getExploreCategoryBySlug(slug);
+  if (explore) {
+    return buildBilingualPageMetadata({
+      path,
+      enTitle: `${explore.title} — Niubility`,
+      enDescription: explore.description,
+      zhTitle: `${explore.titleZh} — Niubility`,
+      zhDescription: explore.descriptionZh,
+    });
+  }
+  const leafCategories = await getLeafCategories();
+  const category = leafCategories.find((c) => c.slug === slug);
+  if (!category) {
+    return { title: "Not found" };
+  }
+  return buildBilingualPageMetadata({
+    path,
+    enTitle: `${category.title} — Niubility`,
+    enDescription: category.description,
+    zhTitle: category.titleZh ? `${category.titleZh} — Niubility` : undefined,
+    zhDescription: category.descriptionZh ?? undefined,
+  });
+}
 
 export async function generateStaticParams() {
   const slugs = await getAllCategoryRouteSlugs();

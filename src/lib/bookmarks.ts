@@ -1,6 +1,5 @@
-import { directoryListingToFeaturedTool } from "@/data/featured-tools";
-import type { FeaturedTool } from "@/data/featured-tools";
-import type { DirectoryListing, ListingCategory } from "@/data/listings";
+import { directoryListingToFeaturedTool } from "@/lib/listing-utils";
+import type { DirectoryListing, FeaturedTool, ListingCategory } from "@/types/data";
 
 let catalog: DirectoryListing[] = [];
 

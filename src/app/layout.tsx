@@ -17,6 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://niubility.io"),
   title: "Niubility — Web3 & AI navigation hub",
   description:
     "Free Web3 + AI navigation: discover wallets, job boards, research and media sources, AI developer tools, security resources, and community signals.",
@@ -32,9 +33,9 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} dark min-h-dvh bg-zinc-950 antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#050506] text-zinc-100">
+      <body className="flex min-h-dvh flex-col bg-zinc-950 text-zinc-100">
         <BookmarkCatalogInit listings={listings} />
         <LanguageProvider>
           <UserStateProvider>{children}</UserStateProvider>

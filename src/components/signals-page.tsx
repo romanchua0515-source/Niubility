@@ -4,7 +4,7 @@ import { HotThisWeekList } from "@/components/hot-this-week";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { useLanguage } from "@/context/LanguageContext";
-import type { HotItem } from "@/data/hot-this-week";
+import type { HotItem } from "@/types/data";
 import Link from "next/link";
 
 type SignalsPageProps = {

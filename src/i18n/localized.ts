@@ -1,9 +1,12 @@
 import type { Lang } from "@/i18n/dictionary";
-import type { Category, ExploreCategory } from "@/data/categories";
-import type { HotItem } from "@/data/hot-this-week";
-import type { QuickPick } from "@/data/quick-picks";
-import type { Role } from "@/data/roles";
-import type { TopSearchTerm } from "@/data/top-searched";
+import type {
+  Category,
+  ExploreCategory,
+  HotItem,
+  QuickPick,
+  Role,
+  TopSearchTerm,
+} from "@/types/data";
 import type {
   RoleLearnFrom,
   RolePageDetail,

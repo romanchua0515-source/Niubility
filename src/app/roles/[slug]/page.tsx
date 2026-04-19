@@ -1,11 +1,15 @@
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { RolePagePlaceholder } from "@/components/role-page/role-page-placeholder";
 import { RolePageShell } from "@/components/role-page/role-page-shell";
 import { RolePageTemplate } from "@/components/role-page/role-page-template";
-import { getRolePageDetail } from "@/data/role-pages";
-import { roles } from "@/data/roles";
 import { getCategoriesBySlugs } from "@/lib/api";
+import { getRolePageDetail } from "@/lib/role-page-data";
+import { roles } from "@/lib/roles";
+import {
+  buildBilingualPageMetadata,
+  truncateMetaDescription,
+} from "@/lib/seo-metadata";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -22,11 +26,17 @@ export async function generateMetadata({
   const role = roles.find((r) => r.slug === slug);
   if (!role) return { title: "Role" };
   const detail = getRolePageDetail(slug);
-  const desc = detail?.lede ?? role.description;
-  return {
-    title: `${role.title} — Niubility`,
-    description: desc,
-  };
+  const enDesc = truncateMetaDescription(detail?.lede ?? role.description);
+  const zhRaw =
+    detail?.ledeZh ?? role.descriptionZh ?? role.description ?? enDesc;
+  const zhDesc = truncateMetaDescription(zhRaw);
+  return buildBilingualPageMetadata({
+    path: `/roles/${slug}`,
+    enTitle: `${role.title} — Niubility`,
+    enDescription: enDesc,
+    zhTitle: `${role.titleZh ?? role.title} — Niubility`,
+    zhDescription: zhDesc,
+  });
 }
 
 export default async function RolePage({ params }: PageProps) {
