@@ -75,6 +75,56 @@ function str(v: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+const FALLBACK_SUBCATEGORY = "ai-tools";
+
+/**
+ * AI-generated `subcategory_slug` values sometimes invent leaves that don't
+ * exist in the `subcategories` table (e.g. "ai-search"). Insertion would
+ * fail on the foreign-key constraint, so we resolve to a valid slug:
+ *   1. Use the proposed slug if it exists.
+ *   2. Otherwise, fall back to the first subcategory under the given parent.
+ *   3. Otherwise, use FALLBACK_SUBCATEGORY as a final safe default.
+ */
+async function resolveSubcategorySlug(
+  svc: ReturnType<typeof createServiceClient>,
+  proposed: string,
+  categorySlug: string,
+): Promise<string> {
+  if (!svc) return proposed;
+
+  const { data: exact } = await svc
+    .from("subcategories")
+    .select("slug")
+    .eq("slug", proposed)
+    .maybeSingle();
+  if (exact?.slug) return exact.slug as string;
+
+  const { data: parent } = await svc
+    .from("categories")
+    .select("id")
+    .eq("slug", categorySlug)
+    .maybeSingle();
+  if (parent?.id) {
+    const { data: siblings } = await svc
+      .from("subcategories")
+      .select("slug")
+      .eq("category_id", parent.id)
+      .limit(1);
+    const first = siblings?.[0]?.slug;
+    if (typeof first === "string" && first.length > 0) {
+      console.warn(
+        `${LOG} subcategory_slug "${proposed}" not found; falling back to "${first}" under category "${categorySlug}"`,
+      );
+      return first;
+    }
+  }
+
+  console.warn(
+    `${LOG} subcategory_slug "${proposed}" not found and no sibling available; using "${FALLBACK_SUBCATEGORY}"`,
+  );
+  return FALLBACK_SUBCATEGORY;
+}
+
 async function findDuplicate(
   url: string,
 ): Promise<{ id: string; name: string } | null> {
@@ -313,7 +363,8 @@ async function handlePublish(body: Record<string, unknown>) {
   const description = str(body.description);
   const website_url = str(body.website_url);
   const category_slug = str(body.category_slug);
-  const subcategory_slug = str(body.subcategory_slug) ?? "ai-tools";
+  const proposed_subcategory_slug =
+    str(body.subcategory_slug) ?? FALLBACK_SUBCATEGORY;
   const pricing = str(body.pricing) ?? "Unknown";
   const best_for = str(body.best_for) ?? "TBD";
 
@@ -323,6 +374,12 @@ async function handlePublish(body: Record<string, unknown>) {
     return err(400, "publish: website_url must be a valid http(s) URL");
   }
   if (!category_slug) return err(400, "publish: category_slug is required");
+
+  const subcategory_slug = await resolveSubcategorySlug(
+    svc,
+    proposed_subcategory_slug,
+    category_slug,
+  );
 
   // Re-check duplicate server-side — defends against concurrent inserts.
   const existing = await findDuplicate(website_url);
