@@ -1,6 +1,7 @@
 "use client";
 
 import { useLanguage } from "@/context/LanguageContext";
+import { Github } from "lucide-react";
 import Link from "next/link";
 
 const linkKeys = [
@@ -48,6 +49,17 @@ export function SiteFooter() {
             © {new Date().getFullYear()} Niubility. {t("footerCopyright")}
           </span>
           <span>{t("footerNoWallet")}</span>
+        </div>
+        <div className="mt-4 flex justify-start">
+          <a
+            href="https://github.com/romanchua0515-source/Niubility"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-xs text-zinc-500 transition-colors hover:text-zinc-300"
+          >
+            <Github className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
+            Open source
+          </a>
         </div>
       </div>
     </footer>

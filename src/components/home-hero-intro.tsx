@@ -13,7 +13,7 @@ export function HomeHeroIntro({ listings, leafCategories }: HomeHeroIntroProps) 
   const { t } = useLanguage();
 
   return (
-    <div className="min-w-0">
+    <div className="min-w-0 max-lg:min-h-0 lg:min-h-[85vh] lg:flex lg:flex-col lg:justify-center">
       <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400">
         {t("heroEyebrow")}
       </p>

@@ -14,17 +14,20 @@ export function EngageStrip() {
   const { t } = useLanguage();
 
   return (
-    <div className="mt-10 w-full">
+    <section className="w-full py-16" aria-labelledby="engage-title">
       <div className="overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-900/45 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.03)_inset,0_1px_0_0_rgba(255,255,255,0.04)_inset] sm:p-7 md:px-8 md:py-7">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
           <div className="min-w-0 max-w-md shrink-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-400/85">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-emerald-400">
               {t("engageEyebrow")}
             </p>
-            <h2 className="mt-1.5 text-lg font-semibold tracking-tight text-zinc-100">
+            <h2
+              id="engage-title"
+              className="mb-1 text-2xl font-bold text-zinc-100"
+            >
               {t("engageTitle")}
             </h2>
-            <p className="mt-1 text-sm leading-relaxed text-zinc-400">
+            <p className="mb-8 text-sm text-zinc-400">
               {t("engageDesc")}
             </p>
           </div>
@@ -58,6 +61,6 @@ export function EngageStrip() {
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

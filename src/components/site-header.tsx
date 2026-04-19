@@ -15,7 +15,7 @@ export function SiteHeader() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 border-b border-zinc-800/60 bg-zinc-950/80 backdrop-blur-md">
+      <header className="sticky top-0 z-50 border-b border-zinc-800/60 backdrop-blur-md bg-zinc-950/80">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="flex h-14 items-center justify-between sm:h-16">
             <Link href="/" className="group flex items-center gap-2.5">

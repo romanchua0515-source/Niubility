@@ -76,10 +76,10 @@ export default async function Home() {
 
       <SiteHeader />
 
-      <main className="relative mx-auto w-full max-w-6xl flex-1 px-4 pb-0 sm:px-6">
+      <main className="relative mx-auto w-full max-w-7xl flex-1 px-4 pb-0 sm:px-6 lg:px-8">
         <section
           id="start"
-          className="flex min-h-screen scroll-mt-24 items-center pt-6 sm:pt-7 md:scroll-mt-32 md:pt-8"
+          className="flex min-h-[85vh] scroll-mt-24 items-center pt-6 sm:pt-7 md:scroll-mt-32 md:pt-8"
         >
           <div className="grid w-full grid-cols-1 gap-8 lg:grid-cols-5 lg:items-stretch lg:gap-10">
             <div className="min-w-0 lg:col-span-3 lg:flex lg:flex-col lg:justify-center">

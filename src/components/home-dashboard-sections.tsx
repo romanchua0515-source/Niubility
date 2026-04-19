@@ -20,13 +20,13 @@ export function HomeDashboardSections({ featuredTools }: HomeDashboardSectionsPr
   const { t } = useLanguage();
 
   return (
-    <div className="mt-8 space-y-6 border-t border-zinc-800/60 pt-8 sm:mt-10 sm:space-y-8 sm:pt-10">
+    <div className="border-t border-zinc-800/60">
       <section
         id="roles"
-        className={`scroll-mt-24 sm:scroll-mt-28 md:scroll-mt-32 ${panel}`}
+        className={`scroll-mt-24 py-16 sm:scroll-mt-28 md:scroll-mt-32 ${panel}`}
       >
         <SectionHeading
-          compact
+          home
           eyebrow={t("homeRolesEyebrow")}
           title={t("homeRolesTitle")}
           description={t("homeRolesDesc")}
@@ -38,13 +38,13 @@ export function HomeDashboardSections({ featuredTools }: HomeDashboardSectionsPr
         </div>
       </section>
 
-      <div className="grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-2 md:items-stretch lg:gap-6">
+      <div className="grid grid-cols-1 gap-5 py-16 sm:gap-6 md:grid-cols-2 md:items-stretch lg:gap-6">
         <section
           id="tools"
           className={`scroll-mt-24 sm:scroll-mt-28 md:scroll-mt-32 flex h-full min-h-0 flex-col ${panel}`}
         >
           <SectionHeading
-            compact
+            home
             eyebrow={t("homeToolsEyebrow")}
             title={t("homeToolsTitle")}
             description={t("homeToolsDesc")}
@@ -61,7 +61,7 @@ export function HomeDashboardSections({ featuredTools }: HomeDashboardSectionsPr
           className={`scroll-mt-24 sm:scroll-mt-28 md:scroll-mt-32 flex h-full min-h-0 flex-col ${panel}`}
         >
           <SectionHeading
-            compact
+            home
             eyebrow={t("homeCategoriesEyebrow")}
             title={t("homeCategoriesTitle")}
             description={t("homeCategoriesDesc")}
