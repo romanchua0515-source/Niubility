@@ -5,15 +5,15 @@ import { usePathname } from "next/navigation";
 
 const navItems = [
   { href: "/admin", label: "Dashboard" },
-  { href: "/admin/submissions", label: "Submissions / 合作请求" },
-  { href: "/admin/tools", label: "Tools (网址列表)" },
-  { href: "/admin/categories", label: "Categories (分类管理)" },
-  { href: "/admin/banners", label: "Banners (轮播推荐)" },
-  { href: "/admin/signals", label: "Signals (热点信号)" },
-  { href: "/admin/roles", label: "Roles (角色页)" },
-  { href: "/admin/careers", label: "Careers (职位资源)" },
-  { href: "/admin/people", label: "People (人物库)" },
-  { href: "/admin/guides", label: "Guides (指南内容)" },
+  { href: "/admin/submissions", label: "Submissions" },
+  { href: "/admin/tools", label: "Tools" },
+  { href: "/admin/categories", label: "Categories" },
+  { href: "/admin/banners", label: "Banners" },
+  { href: "/admin/signals", label: "Signals" },
+  { href: "/admin/roles", label: "Roles" },
+  { href: "/admin/careers", label: "Careers" },
+  { href: "/admin/people", label: "People" },
+  { href: "/admin/guides", label: "Guides" },
 ] as const;
 
 function linkActive(href: string, pathname: string): boolean {

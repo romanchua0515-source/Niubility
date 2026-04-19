@@ -5,7 +5,7 @@ import { HeroToolCarousel } from "@/components/hero-tool-carousel";
 import type { DirectoryListing, FeaturedTool, ListingCategory } from "@/types/data";
 import { directoryListingToFeaturedTool } from "@/lib/listing-utils";
 import { supabase } from "@/lib/supabase";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { GripVertical } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -104,6 +104,8 @@ export function BannersConsole({ initialListings }: BannersConsoleProps) {
   const [pending, setPending] = useState<Set<string>>(() => new Set());
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [showAdModal, setShowAdModal] = useState(false);
+  const [draggingSlug, setDraggingSlug] = useState<string | null>(null);
+  const [dragOverSlug, setDragOverSlug] = useState<string | null>(null);
 
   useEffect(() => {
     setListings([...initialListings].sort(sortForAdmin));
@@ -125,7 +127,7 @@ export function BannersConsole({ initialListings }: BannersConsoleProps) {
   );
 
   const filtered = useMemo(() => {
-    let rows =
+    const rows =
       categoryFilter === "all"
         ? listings
         : listings.filter((l) => l.category === categoryFilter);
@@ -208,57 +210,6 @@ export function BannersConsole({ initialListings }: BannersConsoleProps) {
     [listings, router],
   );
 
-  const moveFeatured = useCallback(
-    async (slug: string, delta: -1 | 1) => {
-      setGlobalError(null);
-      const featured = listings
-        .filter((l) => l.isFeatured)
-        .sort((a, b) => a.featuredOrder - b.featuredOrder);
-      const idx = featured.findIndex((l) => l.slug === slug);
-      const j = idx + delta;
-      if (idx === -1 || j < 0 || j >= featured.length) return;
-
-      const a = featured[idx];
-      const b = featured[j];
-      const prev = listings;
-      const newOrderA = b.featuredOrder;
-      const newOrderB = a.featuredOrder;
-
-      setListings((rows) =>
-        rows
-          .map((row) => {
-            if (row.slug === a.slug) return { ...row, featuredOrder: newOrderA };
-            if (row.slug === b.slug) return { ...row, featuredOrder: newOrderB };
-            return row;
-          })
-          .sort(sortForAdmin),
-      );
-
-      setPending((p) => new Set(p).add(a.slug).add(b.slug));
-
-      const [r1, r2] = await Promise.all([
-        supabase.from("tools").update({ featured_order: newOrderA }).eq("slug", a.slug),
-        supabase.from("tools").update({ featured_order: newOrderB }).eq("slug", b.slug),
-      ]);
-
-      setPending((p) => {
-        const n = new Set(p);
-        n.delete(a.slug);
-        n.delete(b.slug);
-        return n;
-      });
-
-      const err = r1.error ?? r2.error;
-      if (err) {
-        setListings([...prev].sort(sortForAdmin));
-        setGlobalError(err.message);
-        return;
-      }
-      router.refresh();
-    },
-    [listings, router],
-  );
-
   const featuredSorted = useMemo(
     () =>
       listings
@@ -266,6 +217,112 @@ export function BannersConsole({ initialListings }: BannersConsoleProps) {
         .sort((a, b) => a.featuredOrder - b.featuredOrder),
     [listings],
   );
+
+  /**
+   * Drop reorder: moves `srcSlug` to the position of `targetSlug` inside the
+   * featured list, then persists the new `featured_order` (0,1,2…) to Supabase.
+   * Only the rows whose order actually changed are written.
+   */
+  const reorderFeatured = useCallback(
+    async (srcSlug: string, targetSlug: string) => {
+      if (srcSlug === targetSlug) return;
+      setGlobalError(null);
+
+      const current = featuredSorted;
+      const srcIdx = current.findIndex((l) => l.slug === srcSlug);
+      const targetIdx = current.findIndex((l) => l.slug === targetSlug);
+      if (srcIdx === -1 || targetIdx === -1) return;
+
+      const reordered = [...current];
+      const [moved] = reordered.splice(srcIdx, 1);
+      reordered.splice(targetIdx, 0, moved);
+
+      // Compute contiguous 0…N-1 ordering, narrow to only rows that changed.
+      const originalOrder = new Map(current.map((l) => [l.slug, l.featuredOrder]));
+      const updates = reordered
+        .map((l, i) => ({ slug: l.slug, newOrder: i }))
+        .filter((u) => originalOrder.get(u.slug) !== u.newOrder);
+      if (updates.length === 0) return;
+
+      const prev = listings;
+      const slugToOrder = new Map(updates.map((u) => [u.slug, u.newOrder]));
+      setListings((rows) =>
+        rows
+          .map((r) =>
+            slugToOrder.has(r.slug)
+              ? { ...r, featuredOrder: slugToOrder.get(r.slug) as number }
+              : r,
+          )
+          .sort(sortForAdmin),
+      );
+
+      setPending((p) => {
+        const n = new Set(p);
+        updates.forEach((u) => n.add(u.slug));
+        return n;
+      });
+
+      const results = await Promise.all(
+        updates.map((u) =>
+          supabase
+            .from("tools")
+            .update({ featured_order: u.newOrder })
+            .eq("slug", u.slug),
+        ),
+      );
+
+      setPending((p) => {
+        const n = new Set(p);
+        updates.forEach((u) => n.delete(u.slug));
+        return n;
+      });
+
+      const firstError = results.find((r) => r.error);
+      if (firstError?.error) {
+        setListings([...prev].sort(sortForAdmin));
+        setGlobalError(firstError.error.message);
+        return;
+      }
+      router.refresh();
+    },
+    [featuredSorted, listings, router],
+  );
+
+  // --- HTML5 drag + drop handlers (only active on featured rows) ---
+
+  function onDragStart(slug: string, e: React.DragEvent<HTMLDivElement>) {
+    setDraggingSlug(slug);
+    e.dataTransfer.effectAllowed = "move";
+    try {
+      e.dataTransfer.setData("text/plain", slug);
+    } catch {
+      /* Safari may reject setData during testing; effectAllowed is enough. */
+    }
+  }
+
+  function onDragOver(slug: string, e: React.DragEvent<HTMLDivElement>) {
+    if (!draggingSlug || draggingSlug === slug) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverSlug !== slug) setDragOverSlug(slug);
+  }
+
+  function onDragLeave(slug: string) {
+    if (dragOverSlug === slug) setDragOverSlug(null);
+  }
+
+  function onDrop(slug: string, e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    const src = draggingSlug;
+    setDraggingSlug(null);
+    setDragOverSlug(null);
+    if (src && src !== slug) void reorderFeatured(src, slug);
+  }
+
+  function onDragEnd() {
+    setDraggingSlug(null);
+    setDragOverSlug(null);
+  }
 
   return (
     <div className="space-y-6">
@@ -339,10 +396,10 @@ export function BannersConsole({ initialListings }: BannersConsoleProps) {
           <div className="overflow-hidden rounded-xl border border-zinc-800/60">
             <div className="overflow-x-auto">
               <div className="min-w-[720px]">
-                <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1.1fr)_minmax(0,5.5rem)_auto] gap-2 border-b border-zinc-800 bg-zinc-950 px-4 py-2 text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
+                <div className="grid grid-cols-[2rem_minmax(0,2fr)_minmax(0,1.1fr)_auto] gap-2 border-b border-zinc-800 bg-zinc-950 px-4 py-2 text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
+                  <div></div>
                   <div>Tool</div>
                   <div>Category</div>
-                  <div className="text-center">Order</div>
                   <div className="pr-1 text-right">Featured</div>
                 </div>
                 {filtered.length === 0 ? (
@@ -354,20 +411,56 @@ export function BannersConsole({ initialListings }: BannersConsoleProps) {
                 ) : (
                   <div className="divide-y divide-zinc-800/80 text-sm">
                     {filtered.map((tool) => {
-                      const orderIndex = tool.isFeatured
-                        ? featuredSorted.findIndex((x) => x.slug === tool.slug)
-                        : -1;
-                      const atFirst = orderIndex <= 0;
-                      const atLast =
-                        orderIndex === -1 ||
-                        orderIndex >= featuredSorted.length - 1;
-                      const orderBusy = pending.has(tool.slug);
+                      const canDrag = tool.isFeatured;
+                      const isDragging = draggingSlug === tool.slug;
+                      const isDragOver =
+                        dragOverSlug === tool.slug && draggingSlug !== tool.slug;
+
+                      const rowClass = [
+                        "grid grid-cols-[2rem_minmax(0,2fr)_minmax(0,1.1fr)_auto] items-center gap-2 px-4 py-2.5 transition-colors",
+                        "hover:bg-zinc-900/50",
+                        isDragging ? "opacity-40" : "",
+                        isDragOver
+                          ? "bg-zinc-700/50 border-l-2 border-emerald-400"
+                          : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ");
 
                       return (
                         <div
                           key={tool.slug}
-                          className="grid grid-cols-[minmax(0,2fr)_minmax(0,1.1fr)_minmax(0,5.5rem)_auto] items-center gap-2 px-4 py-2.5 hover:bg-zinc-900/50"
+                          draggable={canDrag}
+                          onDragStart={
+                            canDrag ? (e) => onDragStart(tool.slug, e) : undefined
+                          }
+                          onDragOver={
+                            canDrag ? (e) => onDragOver(tool.slug, e) : undefined
+                          }
+                          onDragLeave={
+                            canDrag ? () => onDragLeave(tool.slug) : undefined
+                          }
+                          onDrop={
+                            canDrag ? (e) => onDrop(tool.slug, e) : undefined
+                          }
+                          onDragEnd={canDrag ? onDragEnd : undefined}
+                          className={rowClass}
                         >
+                          <div
+                            className={
+                              canDrag
+                                ? "flex h-full items-center justify-center text-zinc-600 hover:text-zinc-400 cursor-grab active:cursor-grabbing"
+                                : "flex h-full items-center justify-center text-zinc-800"
+                            }
+                            aria-label={canDrag ? "Drag to reorder" : undefined}
+                            title={
+                              canDrag
+                                ? "Drag to reorder carousel"
+                                : "Enable Featured to reorder"
+                            }
+                          >
+                            <GripVertical className="h-4 w-4" />
+                          </div>
                           <div className="min-w-0">
                             <p className="truncate font-medium text-zinc-100">
                               {tool.name}
@@ -383,32 +476,6 @@ export function BannersConsole({ initialListings }: BannersConsoleProps) {
                           </div>
                           <div className="min-w-0 truncate text-xs text-zinc-400">
                             {tool.subcategory}
-                          </div>
-                          <div className="flex justify-center">
-                            {tool.isFeatured ? (
-                              <div className="inline-flex rounded-md border border-zinc-800 bg-zinc-950/80 p-0.5">
-                                <button
-                                  type="button"
-                                  disabled={orderBusy || atFirst}
-                                  onClick={() => void moveFeatured(tool.slug, -1)}
-                                  className="rounded p-1 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-30"
-                                  aria-label="Move up in carousel"
-                                >
-                                  <ChevronUp className="h-4 w-4" />
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={orderBusy || atLast}
-                                  onClick={() => void moveFeatured(tool.slug, 1)}
-                                  className="rounded p-1 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-30"
-                                  aria-label="Move down in carousel"
-                                >
-                                  <ChevronDown className="h-4 w-4" />
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="text-xs text-zinc-600">—</span>
-                            )}
                           </div>
                           <div className="flex justify-end pr-1">
                             <FeaturedToggle
@@ -435,8 +502,8 @@ export function BannersConsole({ initialListings }: BannersConsoleProps) {
                 Live Carousel Preview
               </h2>
               <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
-                Same component as the homepage. Order and custom banner images
-                update as you edit — no reload.
+                Same component as the homepage. Drag the grip handle on any
+                featured row to reorder — updates live with no reload.
               </p>
               <div className="mt-4">
                 {previewTools.length === 0 ? (

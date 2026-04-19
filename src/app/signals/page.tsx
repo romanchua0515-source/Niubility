@@ -4,7 +4,6 @@ import {
   buildBilingualPageMetadata,
   truncateMetaDescription,
 } from "@/lib/seo-metadata";
-import type { HotItem } from "@/types/data";
 import type { Metadata } from "next";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -33,21 +32,7 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 }
 
-function signalToHotItem(s: Signal): HotItem {
-  const kind: HotItem["kind"] =
-    s.type === "TOPIC" ? "Topic" : s.type === "TOOL" ? "Tool" : "Resource";
-  return {
-    id: s.id,
-    title: s.title,
-    titleZh: s.titleZh,
-    context: s.description,
-    contextZh: s.descriptionZh,
-    kind,
-  };
-}
-
 export default async function SignalsPageRoute() {
   const signals = await getSignals().catch(() => [] as Signal[]);
-  const items = signals.map(signalToHotItem);
-  return <SignalsPage items={items} />;
+  return <SignalsPage signals={signals} />;
 }
