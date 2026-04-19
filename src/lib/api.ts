@@ -69,30 +69,15 @@ const ROLE_TAG_SET = new Set<string>([
   "job-seekers",
 ]);
 
-const LISTING_LEAVES: ListingCategory[] = [
-  "job-boards",
-  "ai-tools",
-  "research",
-  "trends-news",
-  "security",
-  "browsers",
-  "media",
-  "community",
-];
-
-function isListingCategory(s: string): s is ListingCategory {
-  return (LISTING_LEAVES as readonly string[]).includes(s);
-}
-
 function rowToDirectoryListing(
   row: ToolRow,
   subName?: string,
   subNameZh?: string | null,
 ): DirectoryListing {
-  const leaf = row.subcategory_slug;
-  if (!isListingCategory(leaf)) {
-    throw new Error(`Unsupported subcategory_slug for listing: ${leaf}`);
-  }
+  // Pass through whatever slug the DB has — unknown leaves (e.g. new AI
+  // verticals added via /admin) render under their own slug rather than
+  // throwing and breaking prerender.
+  const leaf = row.subcategory_slug as ListingCategory;
 
   let description = row.description;
   let useCase = "";
@@ -104,7 +89,8 @@ function rowToDirectoryListing(
     }
   }
 
-  const roleTags = row.tags.filter((t): t is RoleTag => ROLE_TAG_SET.has(t));
+  const tags = Array.isArray(row.tags) ? row.tags : [];
+  const roleTags = tags.filter((t): t is RoleTag => ROLE_TAG_SET.has(t));
 
   const base = {
     slug: row.slug,
@@ -115,7 +101,7 @@ function rowToDirectoryListing(
     url: row.website_url,
     description,
     descriptionZh: row.description_zh ?? undefined,
-    tags: row.tags,
+    tags,
     bestFor: row.best_for,
     bestForZh: row.best_for_zh ?? undefined,
     pricing: row.pricing,
@@ -205,16 +191,7 @@ export async function getToolDetailBySlug(
     .eq("slug", row.subcategory_slug)
     .maybeSingle();
 
-  // Tools with a subcategory_slug that isn't in the public listing whitelist
-  // (e.g. admin-only experimental leaves) can't be rendered as public
-  // DirectoryListings — return null so the detail page 404s cleanly instead
-  // of throwing during prerender.
-  let base: DirectoryListing;
-  try {
-    base = rowToDirectoryListing(row, sub?.name, sub?.name_zh);
-  } catch {
-    return null;
-  }
+  const base = rowToDirectoryListing(row, sub?.name, sub?.name_zh);
   return {
     ...base,
     nameZh: row.name_zh ?? null,
