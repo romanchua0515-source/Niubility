@@ -20,7 +20,7 @@ export function HomeDashboardSections({ featuredTools }: HomeDashboardSectionsPr
   const { t } = useLanguage();
 
   return (
-    <div className="mt-6 space-y-5 border-t border-zinc-800/60 pt-6 sm:mt-8 sm:space-y-6 sm:pt-8">
+    <div className="mt-8 space-y-6 border-t border-zinc-800/60 pt-8 sm:mt-10 sm:space-y-8 sm:pt-10">
       <section
         id="roles"
         className={`scroll-mt-24 sm:scroll-mt-28 md:scroll-mt-32 ${panel}`}

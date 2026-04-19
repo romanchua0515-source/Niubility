@@ -39,7 +39,7 @@ function signalToHotItem(s: Signal): HotItem {
 }
 
 export function SignalsPage({ signals }: SignalsPageProps) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
 
   const weekPills = useMemo(() => {
     const uniq = [...new Set(signals.map((s) => s.weekLabel))];
@@ -124,8 +124,12 @@ export function SignalsPage({ signals }: SignalsPageProps) {
           ) : (
             <p className="rounded-xl border border-zinc-800/80 bg-zinc-900/30 px-4 py-8 text-center text-sm text-zinc-500">
               {signals.length === 0
-                ? t("signalsPageSubtitle")
-                : "No signals for this week."}
+                ? lang === "zh"
+                  ? "暂无信号内容，请稍后再来。"
+                  : "No signals published yet."
+                : lang === "zh"
+                  ? "该周暂无信号。"
+                  : "No signals for this week."}
             </p>
           )}
         </div>

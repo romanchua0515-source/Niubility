@@ -1,6 +1,11 @@
 import { BannersConsole } from "@/components/admin/banners-console";
 import { getTools } from "@/lib/api";
 
+// Admin editor: must render fresh on every request so drag-reorder
+// persistence is visible on the next refresh. Without this, Next.js
+// prerenders the page at build time and serves stale featured_order values.
+export const dynamic = "force-dynamic";
+
 export default async function AdminBannersPage() {
   const listings = await getTools();
 

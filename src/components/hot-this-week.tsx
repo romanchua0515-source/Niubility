@@ -35,9 +35,9 @@ export function HotThisWeekList({ items, compact = false }: HotThisWeekProps) {
         return (
           <div
             key={item.id}
-            className={`flex flex-col ${gap} ${px} ${py} transition-colors first:rounded-t-xl last:rounded-b-xl hover:bg-zinc-900/50 sm:flex-row sm:items-start sm:justify-between`}
+            className={`flex flex-col ${gap} ${px} ${py} transition-all duration-200 first:rounded-t-xl last:rounded-b-xl hover:scale-[1.01] sm:flex-row sm:items-start sm:justify-between`}
           >
-            <div className="flex min-w-0 flex-1 gap-2.5">
+            <div className="flex min-w-0 flex-1 gap-3">
               <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950/60 text-zinc-500">
                 {i === 0 ? (
                   <Flame className="h-3.5 w-3.5 text-orange-400/90" aria-hidden />
@@ -47,14 +47,14 @@ export function HotThisWeekList({ items, compact = false }: HotThisWeekProps) {
                   </span>
                 )}
               </span>
-              <div className="min-w-0">
+              <div className="min-w-0 space-y-1">
                 <p
-                  className={`font-medium leading-snug text-zinc-100 ${compact ? "text-sm" : ""}`}
+                  className={`font-semibold leading-snug text-zinc-100 ${compact ? "text-sm" : "text-base"}`}
                 >
                   {title}
                 </p>
                 <p
-                  className={`mt-0.5 text-zinc-500 ${compact ? "text-xs leading-relaxed" : "text-sm"}`}
+                  className={`text-zinc-500 ${compact ? "text-xs leading-relaxed" : "text-sm leading-relaxed"}`}
                 >
                   {context}
                 </p>

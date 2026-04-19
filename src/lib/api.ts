@@ -182,6 +182,55 @@ export async function getToolBySlug(slug: string): Promise<DirectoryListing | nu
   return rowToDirectoryListing(row, sub?.name, sub?.name_zh);
 }
 
+export type ToolDetail = DirectoryListing & {
+  nameZh: string | null;
+  healthStatus: "healthy" | "flagged" | "unknown";
+};
+
+export async function getToolDetailBySlug(
+  slug: string,
+): Promise<ToolDetail | null> {
+  const { data, error } = await supabase
+    .from("tools")
+    .select("*")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+
+  const row = data as ToolRow & { name_zh?: string | null };
+  const { data: sub } = await supabase
+    .from("subcategories")
+    .select("name, name_zh")
+    .eq("slug", row.subcategory_slug)
+    .maybeSingle();
+
+  // Tools with a subcategory_slug that isn't in the public listing whitelist
+  // (e.g. admin-only experimental leaves) can't be rendered as public
+  // DirectoryListings — return null so the detail page 404s cleanly instead
+  // of throwing during prerender.
+  let base: DirectoryListing;
+  try {
+    base = rowToDirectoryListing(row, sub?.name, sub?.name_zh);
+  } catch {
+    return null;
+  }
+  return {
+    ...base,
+    nameZh: row.name_zh ?? null,
+    healthStatus: (row.health_status ?? "unknown") as
+      | "healthy"
+      | "flagged"
+      | "unknown",
+  };
+}
+
+export async function getAllToolSlugs(): Promise<string[]> {
+  const { data, error } = await supabase.from("tools").select("slug");
+  if (error) throw error;
+  return (data ?? []).map((r) => r.slug as string);
+}
+
 export async function getFeaturedTools(): Promise<FeaturedTool[]> {
   const all = await getTools();
   return all

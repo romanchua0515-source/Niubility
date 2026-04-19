@@ -5,6 +5,7 @@ import { useUserState } from "@/context/UserStateContext";
 import { getListingBookmarkKey } from "@/lib/bookmarks";
 import type { DirectoryListing } from "@/types/data";
 import { X } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 
 type ToolDetailModalProps = {
@@ -175,6 +176,16 @@ export function ToolDetailModal({ tool, onClose }: ToolDetailModalProps) {
           >
             {t("toolModalVisit")}
           </a>
+        </div>
+
+        <div className="mt-6 border-t border-zinc-800/70 pt-4 text-center">
+          <Link
+            href={`/tools/${tool.slug}`}
+            className="text-xs text-zinc-500 transition-colors hover:text-emerald-400"
+            onClick={handleClose}
+          >
+            {zh ? "查看完整页面 →" : "View full page →"}
+          </Link>
         </div>
       </div>
     </div>

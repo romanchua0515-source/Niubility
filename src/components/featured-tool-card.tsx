@@ -20,7 +20,7 @@ export function FeaturedToolCard({ tool }: FeaturedToolCardProps) {
   const saved = isBookmarked(bookmarkKey);
 
   return (
-    <div className="group relative min-h-[140px] overflow-hidden rounded-xl border border-zinc-800/80 bg-gradient-to-b from-zinc-900/50 to-zinc-950/80 transition-all duration-300 hover:border-emerald-500/30 hover:shadow-[0_16px_48px_-28px_rgba(16,185,129,0.4)]">
+    <div className="group relative aspect-[4/5] w-full min-w-0 overflow-hidden rounded-xl border border-zinc-800/80 bg-gradient-to-b from-zinc-900/50 to-zinc-950/80 transition-all duration-200 hover:scale-[1.01] hover:border-emerald-500/30 hover:shadow-[0_16px_48px_-28px_rgba(16,185,129,0.4)]">
       <button
         type="button"
         className="absolute right-2 top-2 z-20 rounded-md border border-zinc-800/90 bg-zinc-950/85 p-1.5 text-zinc-400 shadow-sm backdrop-blur-sm transition-colors hover:border-emerald-500/40 hover:text-emerald-300"
@@ -41,14 +41,14 @@ export function FeaturedToolCard({ tool }: FeaturedToolCardProps) {
         href={tool.href}
         target="_blank"
         rel="noopener noreferrer"
-        className="relative z-10 flex min-h-[140px] flex-col justify-between gap-3 p-4"
+        className="relative z-10 flex h-full min-h-0 flex-col justify-between gap-3 p-4"
         onClick={() => addRecent(bookmarkKey)}
       >
-        <div className="space-y-2 pr-8">
-          <span className="inline-flex w-fit rounded-full border border-zinc-800 bg-zinc-950/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-zinc-500 group-hover:border-zinc-700 group-hover:text-zinc-400">
+        <div className="min-h-0 space-y-2 pr-8">
+          <span className="inline-flex w-fit rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400">
             {category}
           </span>
-          <h3 className="text-base font-semibold leading-snug tracking-tight text-zinc-50">
+          <h3 className="text-base font-semibold leading-snug tracking-tight text-zinc-100">
             {tool.name}
           </h3>
           <p className="line-clamp-2 text-xs leading-relaxed text-zinc-500 group-hover:text-zinc-400">

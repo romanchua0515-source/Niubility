@@ -79,7 +79,7 @@ export default async function Home() {
       <main className="relative mx-auto w-full max-w-6xl flex-1 px-4 pb-0 sm:px-6">
         <section
           id="start"
-          className="scroll-mt-24 grid grid-cols-1 gap-5 pt-5 sm:gap-6 sm:pt-6 md:scroll-mt-32 md:grid-cols-12 md:gap-7 md:pt-7 lg:gap-8 lg:pt-8"
+          className="scroll-mt-24 grid grid-cols-1 gap-6 pt-6 sm:gap-7 sm:pt-7 md:scroll-mt-32 md:grid-cols-12 md:gap-8 md:pt-8 lg:gap-8 lg:pt-8"
         >
           <div className="min-w-0 md:col-span-7">
             <HomeHeroIntro
@@ -96,7 +96,7 @@ export default async function Home() {
 
         <EngageStrip />
 
-        <div className="pb-10 pt-8">
+        <div className="pb-10 pt-10 sm:pt-12">
           <SiteFooter />
         </div>
       </main>
