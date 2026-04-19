@@ -125,9 +125,16 @@ async function resolveSubcategorySlug(
   return FALLBACK_SUBCATEGORY;
 }
 
+/**
+ * A row matches if its website_url equals `url` OR its slug equals `slug`.
+ * Done as two independent .eq() queries instead of a single .or() filter so
+ * we don't have to worry about comma/URL-encoding quirks in PostgREST's
+ * `or` param (URLs contain `/`, `&`, `?`, `=` that can break or-string parsing).
+ */
 async function findDuplicate(
   url: string,
-): Promise<{ id: string; name: string } | null> {
+  slug?: string,
+): Promise<{ id: string; name: string; conflict: "url" | "slug" } | null> {
   const svc = createServiceClient();
   if (!svc) {
     console.warn(
@@ -135,17 +142,42 @@ async function findDuplicate(
     );
     return null;
   }
-  const { data, error } = await svc
+
+  const { data: byUrl, error: urlErr } = await svc
     .from("tools")
     .select("id, name")
     .eq("website_url", url)
     .maybeSingle();
-  if (error) {
-    console.warn(`${LOG} duplicate lookup error:`, error.message);
-    return null;
+  if (urlErr) {
+    console.warn(`${LOG} duplicate (url) lookup error:`, urlErr.message);
   }
-  if (!data) return null;
-  return { id: data.id as string, name: data.name as string };
+  if (byUrl) {
+    return {
+      id: byUrl.id as string,
+      name: byUrl.name as string,
+      conflict: "url",
+    };
+  }
+
+  if (slug) {
+    const { data: bySlug, error: slugErr } = await svc
+      .from("tools")
+      .select("id, name")
+      .eq("slug", slug)
+      .maybeSingle();
+    if (slugErr) {
+      console.warn(`${LOG} duplicate (slug) lookup error:`, slugErr.message);
+    }
+    if (bySlug) {
+      return {
+        id: bySlug.id as string,
+        name: bySlug.name as string,
+        conflict: "slug",
+      };
+    }
+  }
+
+  return null;
 }
 
 function resolveAction(body: Record<string, unknown>): Action {
@@ -200,17 +232,24 @@ export async function POST(req: NextRequest) {
       return err(400, "Body must include a valid http(s) url");
     }
 
+    // If the client supplied a name (batch does; legacy `{checkOnly: true, url}`
+    // may not), derive the slug and also block slug collisions so we never hit
+    // "duplicate key value violates unique constraint tools_slug_key".
+    const incomingName = str(body.name);
+    const incomingSlug = incomingName ? slugify(incomingName) : undefined;
+
     // Duplicate detection runs for both checkOnly and generate.
-    const existing = await findDuplicate(url);
+    const existing = await findDuplicate(url, incomingSlug);
     if (existing) {
       console.log(
-        `${LOG} 409 — duplicate url=${url} existing="${existing.name}"`,
+        `${LOG} 409 — duplicate ${existing.conflict}=${existing.conflict === "url" ? url : incomingSlug} existing="${existing.name}"`,
       );
       return NextResponse.json(
         {
           error: "duplicate",
           message: "Already exists",
           existing_name: existing.name,
+          conflict: existing.conflict,
         },
         { status: 409 },
       );
@@ -381,17 +420,21 @@ async function handlePublish(body: Record<string, unknown>) {
     category_slug,
   );
 
-  // Re-check duplicate server-side — defends against concurrent inserts.
-  const existing = await findDuplicate(website_url);
+  // Re-check duplicate server-side — defends against concurrent inserts AND
+  // against slug collisions (two tools with different URLs whose names
+  // slugify to the same value would violate tools_slug_key otherwise).
+  const slug = slugify(name);
+  const existing = await findDuplicate(website_url, slug);
   if (existing) {
     console.log(
-      `${LOG} 409 — publish blocked, duplicate of "${existing.name}"`,
+      `${LOG} 409 — publish blocked on ${existing.conflict} collision with "${existing.name}"`,
     );
     return NextResponse.json(
       {
         error: "duplicate",
         message: "Already exists",
         existing_name: existing.name,
+        conflict: existing.conflict,
       },
       { status: 409 },
     );
@@ -408,7 +451,7 @@ async function handlePublish(body: Record<string, unknown>) {
       : [];
 
   const payload: Record<string, unknown> = {
-    slug: slugify(name),
+    slug,
     name,
     description,
     description_zh: str(body.description_zh),

@@ -494,7 +494,9 @@ function BatchPanel({ onDone }: BatchPanelProps) {
 
       updateRow(row.id, { status: "processing", message: undefined });
 
-      // Step 1: checkOnly — is this URL already in the tools table?
+      // Step 1: checkOnly — is this URL (or its slug) already in tools?
+      // Sending `name` lets the server derive the slug and block both a url
+      // collision and a slug collision before spending a Claude call.
       let isDup = false;
       let duplicateName: string | undefined;
       try {
@@ -502,7 +504,11 @@ function BatchPanel({ onDone }: BatchPanelProps) {
           method: "POST",
           credentials: "include",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ action: "checkOnly", url: row.url }),
+          body: JSON.stringify({
+            action: "checkOnly",
+            url: row.url,
+            name: row.name,
+          }),
         });
         const checkData = (await checkRes.json().catch(() => null)) as
           | { existing_name?: string; error?: string; detail?: string }
