@@ -1,18 +1,6 @@
+import { AdminNavLinks } from "@/components/admin/admin-nav";
 import Link from "next/link";
 import type { ReactNode } from "react";
-
-const navItems = [
-  { href: "/admin", label: "Dashboard" },
-  { href: "/admin/submissions", label: "Submissions / 合作请求" },
-  { href: "/admin/tools", label: "Tools (网址列表)" },
-  { href: "/admin/categories", label: "Categories (分类管理)" },
-  { href: "/admin/banners", label: "Banners (轮播推荐)" },
-  { href: "/admin/signals", label: "Signals (热点信号)" },
-  { href: "/admin/roles", label: "Roles (角色页)" },
-  { href: "/admin/careers", label: "Careers (职位资源)" },
-  { href: "/admin/people", label: "People (人物库)" },
-  { href: "/admin/guides", label: "Guides (指南内容)" },
-] as const;
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
@@ -32,16 +20,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               </div>
             </div>
           </div>
-          <nav className="mt-6 flex-1 space-y-1 text-sm">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="block rounded-lg px-3 py-2 text-zinc-300 transition-colors hover:bg-zinc-900 hover:text-emerald-300"
-              >
-                {item.label}
-              </Link>
-            ))}
+          <nav className="mt-6 flex-1 space-y-1">
+            <AdminNavLinks />
           </nav>
           <div className="mt-6 border-t border-zinc-800/80 pt-4">
             <Link

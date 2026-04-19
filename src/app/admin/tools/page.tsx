@@ -9,6 +9,15 @@ export default async function AdminToolsPage() {
 
   return (
     <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">
+          Tools
+        </h1>
+        <p className="mt-1 text-sm text-zinc-500">
+          Manage the public directory of tools without touching Supabase tables
+          directly.
+        </p>
+      </div>
       {flaggedCount > 0 && (
         <a
           href="#flagged-tools"

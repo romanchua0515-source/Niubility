@@ -68,11 +68,10 @@ function toFormState(tool: GeneratedTool): FormState {
   };
 }
 
-function buildInsertPayload(tool: GeneratedTool) {
-  return {
+function buildInsertPayload(tool: GeneratedTool): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
     slug: slugify(tool.name),
     name: tool.name,
-    name_zh: tool.name_zh || null,
     description: tool.description,
     description_zh: tool.description_zh || null,
     best_for: tool.best_for || "TBD",
@@ -90,6 +89,14 @@ function buildInsertPayload(tool: GeneratedTool) {
     is_quick_pick: false,
     quick_pick_order: 0,
   };
+  // Only include name_zh when the AI actually produced one. If the column
+  // is missing from the DB schema, omitting the key means Supabase never
+  // tries to write to it (instead of failing the whole insert with
+  // "Could not find the 'name_zh' column").
+  if (typeof tool.name_zh === "string" && tool.name_zh.trim().length > 0) {
+    payload.name_zh = tool.name_zh.trim();
+  }
+  return payload;
 }
 
 type Tab = "single" | "batch";
@@ -271,10 +278,9 @@ function SinglePanel({ onPublished, onBack }: SinglePanelProps) {
         .split(",")
         .map((t) => t.trim())
         .filter((t) => t.length > 0);
-      const payload = {
+      const payload: Record<string, unknown> = {
         slug: slugify(form.name),
         name: form.name,
-        name_zh: form.name_zh || null,
         description: form.description,
         description_zh: form.description_zh || null,
         best_for: form.best_for || "TBD",
@@ -292,6 +298,11 @@ function SinglePanel({ onPublished, onBack }: SinglePanelProps) {
         is_quick_pick: false,
         quick_pick_order: 0,
       };
+      // Only include name_zh when the admin filled it in — omitting the key
+      // keeps the insert working even if the column is missing from the DB.
+      if (form.name_zh && form.name_zh.trim().length > 0) {
+        payload.name_zh = form.name_zh.trim();
+      }
       const { error: dbError } = await supabase.from("tools").insert(payload);
       if (dbError) {
         setError(dbError.message);

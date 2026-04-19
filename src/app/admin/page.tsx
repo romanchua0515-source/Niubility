@@ -97,7 +97,7 @@ export default async function AdminDashboardPage() {
     <div className="space-y-8">
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">
-          Admin Insights
+          Dashboard
         </h1>
         <p className="text-sm text-zinc-400">
           High-level overview of what&apos;s live in the Niubility directory.
