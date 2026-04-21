@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { InsightsPanel } from "@/components/admin/insights-panel";
 
 type ToolRow = {
   id: string;
@@ -179,6 +180,9 @@ export default async function AdminDashboardPage() {
           </div>
         )}
       </section>
+
+      {/* PostHog insights */}
+      <InsightsPanel />
 
       {/* Recent tools */}
       <section className="space-y-3 rounded-2xl border border-zinc-800/80 bg-zinc-900/60 p-4 sm:p-5">

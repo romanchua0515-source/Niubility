@@ -4,6 +4,7 @@ import { useUserState } from "@/context/UserStateContext";
 import { useLanguage } from "@/context/LanguageContext";
 import type { FeaturedTool } from "@/types/data";
 import { featuredToolFaviconFallback, featuredToolLogoSrc } from "@/lib/featured-tool-assets";
+import { trackEvent } from "@/lib/posthog";
 import { getFeaturedBookmarkKey } from "@/lib/bookmarks";
 import { ArrowUpRight, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
@@ -122,6 +123,14 @@ export function HeroToolCarousel({ tools }: HeroToolCarouselProps) {
             href={tool.href}
             target="_blank"
             rel="noopener noreferrer"
+            onMouseDown={() =>
+              trackEvent("tool_clicked", {
+                tool_id: tool.id,
+                tool_name: tool.name,
+                category: tool.category,
+                subcategory: tool.category,
+              })
+            }
             onClick={onOpen}
             className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400/90 hover:text-emerald-300"
           >

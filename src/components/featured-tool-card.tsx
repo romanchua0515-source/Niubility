@@ -4,6 +4,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useUserState } from "@/context/UserStateContext";
 import type { FeaturedTool } from "@/types/data";
 import { getFeaturedBookmarkKey } from "@/lib/bookmarks";
+import { trackEvent } from "@/lib/posthog";
 import { ArrowUpRight, Bookmark } from "lucide-react";
 
 type FeaturedToolCardProps = {
@@ -42,6 +43,14 @@ export function FeaturedToolCard({ tool }: FeaturedToolCardProps) {
         target="_blank"
         rel="noopener noreferrer"
         className="relative z-10 flex h-full min-h-0 flex-col justify-between gap-3 p-4"
+        onMouseDown={() =>
+          trackEvent("tool_clicked", {
+            tool_id: tool.id,
+            tool_name: tool.name,
+            category: tool.category,
+            subcategory: tool.category,
+          })
+        }
         onClick={() => addRecent(bookmarkKey)}
       >
         <div className="min-h-0 space-y-2 pr-8">

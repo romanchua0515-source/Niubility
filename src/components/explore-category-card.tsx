@@ -4,6 +4,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import type { ExploreCategory } from "@/types/data";
 import { exploreCategoryText } from "@/i18n/localized";
 import { getExploreCategoryIcon } from "@/lib/category-metadata";
+import { trackEvent } from "@/lib/posthog";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -22,6 +23,12 @@ export function ExploreCategoryCard({ group }: ExploreCategoryCardProps) {
     <Link
       href={`/categories/${group.slug}`}
       className="group relative block aspect-[4/3] overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-900 shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset] outline-none ring-emerald-500/0 transition-[transform,box-shadow] duration-300 hover:border-emerald-500/30 hover:shadow-[0_24px_60px_-28px_rgba(16,185,129,0.35)] focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+      onClick={() =>
+        trackEvent("category_clicked", {
+          category_slug: group.slug,
+          category_name: group.title,
+        })
+      }
     >
       <Image
         src={group.coverImage}

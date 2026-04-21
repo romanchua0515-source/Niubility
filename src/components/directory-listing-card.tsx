@@ -5,6 +5,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useUserState } from "@/context/UserStateContext";
 import type { DirectoryListing } from "@/types/data";
 import { getListingBookmarkKey } from "@/lib/bookmarks";
+import { trackEvent } from "@/lib/posthog";
 import { Bookmark } from "lucide-react";
 
 type DirectoryListingCardProps = {
@@ -82,6 +83,14 @@ export function DirectoryListingCard({
           target="_blank"
           rel="noopener noreferrer"
           className="pointer-events-auto relative z-20 shrink-0 rounded-md border border-zinc-700 bg-zinc-950/50 px-2.5 py-1 text-xs font-medium text-zinc-300 transition-colors hover:border-emerald-500/35 hover:text-emerald-200"
+          onMouseDown={() =>
+            trackEvent("tool_clicked", {
+              tool_id: listing.slug,
+              tool_name: listing.name,
+              category: listing.category,
+              subcategory: listing.subcategory,
+            })
+          }
           onClick={(e) => {
             e.stopPropagation();
             addRecent(bookmarkKey);

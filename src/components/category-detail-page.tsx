@@ -12,6 +12,7 @@ import {
   jobsAndCareersFeatured,
   jobsAndCareersModules,
 } from "@/lib/job-careers";
+import { trackEvent } from "@/lib/posthog";
 import Link from "next/link";
 
 type CategoryDetailPageProps = {
@@ -139,7 +140,14 @@ export function CategoryDetailPage({
                   <DirectoryListingCard
                     key={listing.slug}
                     listing={listing}
-                    onClick={() => setSelectedTool(listing)}
+                    onClick={() => {
+                      trackEvent("tool_detail_opened", {
+                        tool_id: listing.slug,
+                        tool_name: listing.name,
+                        category: listing.category,
+                      });
+                      setSelectedTool(listing);
+                    }}
                   />
                 ))}
               </div>

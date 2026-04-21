@@ -15,6 +15,7 @@ import {
   useState,
   useTransition,
 } from "react";
+import { trackEvent } from "@/lib/posthog";
 
 type SearchViewProps = {
   query: string;
@@ -59,6 +60,17 @@ export function SearchView({ query, results, topSearched }: SearchViewProps) {
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    if (!query.trim()) return;
+    const timer = setTimeout(() => {
+      trackEvent("search_performed", {
+        query: query.trim().toLowerCase(),
+        results_count: results.length,
+      });
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [query, results.length]);
 
   const navigateToQuery = useCallback(
     (q: string) => {

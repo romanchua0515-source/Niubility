@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { BookmarkCatalogInit } from "@/components/bookmark-catalog-init";
+import { PostHogProvider } from "@/components/posthog-provider";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { UserStateProvider } from "@/context/UserStateContext";
 import { getTools } from "@/lib/api";
@@ -38,7 +40,11 @@ export default async function RootLayout({
       <body className="flex min-h-dvh flex-col bg-zinc-950 text-zinc-100">
         <BookmarkCatalogInit listings={listings} />
         <LanguageProvider>
-          <UserStateProvider>{children}</UserStateProvider>
+          <UserStateProvider>
+            <Suspense fallback={null}>
+              <PostHogProvider>{children}</PostHogProvider>
+            </Suspense>
+          </UserStateProvider>
         </LanguageProvider>
       </body>
     </html>
