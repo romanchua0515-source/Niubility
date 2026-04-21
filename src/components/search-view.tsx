@@ -61,16 +61,25 @@ export function SearchView({ query, results, topSearched }: SearchViewProps) {
     inputRef.current?.focus();
   }, []);
 
+  const resultsCountRef = useRef(0);
+  resultsCountRef.current = results.length;
+
   useEffect(() => {
-    if (!query.trim()) return;
+    const trimmed = query.trim();
+    if (!trimmed) return;
     const timer = setTimeout(() => {
+      console.log(
+        "[search tracking] firing:",
+        trimmed,
+        resultsCountRef.current,
+      );
       trackEvent("search_performed", {
-        query: query.trim().toLowerCase(),
-        results_count: results.length,
+        query: trimmed.toLowerCase(),
+        results_count: resultsCountRef.current,
       });
     }, 800);
     return () => clearTimeout(timer);
-  }, [query, results.length]);
+  }, [query]);
 
   const navigateToQuery = useCallback(
     (q: string) => {
