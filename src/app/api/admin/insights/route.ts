@@ -5,8 +5,11 @@ import { ADMIN_COOKIE, ADMIN_COOKIE_VALUE } from "@/lib/admin-auth";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const POSTHOG_HOST =
-  process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com";
+const POSTHOG_HOST = (
+  process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com"
+)
+  .trim()
+  .replace(/\/$/, "");
 const PROJECT_ID = process.env.POSTHOG_PROJECT_ID;
 const PERSONAL_KEY = process.env.POSTHOG_PERSONAL_API_KEY;
 
@@ -38,6 +41,13 @@ export async function GET() {
   const auth = cookieStore.get(ADMIN_COOKIE)?.value;
   if (auth !== ADMIN_COOKIE_VALUE) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!POSTHOG_HOST.startsWith("http")) {
+    return NextResponse.json(
+      { error: `Invalid POSTHOG_HOST: "${POSTHOG_HOST}"` },
+      { status: 500 },
+    );
   }
 
   if (!PROJECT_ID || !PERSONAL_KEY) {
