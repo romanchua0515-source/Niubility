@@ -68,11 +68,6 @@ export function SearchView({ query, results, topSearched }: SearchViewProps) {
     const trimmed = query.trim();
     if (!trimmed) return;
     const timer = setTimeout(() => {
-      console.log(
-        "[search tracking] firing:",
-        trimmed,
-        resultsCountRef.current,
-      );
       trackEvent("search_performed", {
         query: trimmed.toLowerCase(),
         results_count: resultsCountRef.current,
