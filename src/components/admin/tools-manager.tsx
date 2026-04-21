@@ -16,7 +16,7 @@ import {
 import {
   confirmToolDown,
   markToolHealthy,
-} from "@/app/admin/tools/actions";
+} from "@/app/admin/(protected)/tools/actions";
 
 type ToolsManagerProps = {
   initialTools: AdminToolView[];

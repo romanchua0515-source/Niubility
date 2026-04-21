@@ -1,6 +1,6 @@
 "use client";
 
-import { updateSubmissionStatus } from "@/app/admin/submissions/actions";
+import { updateSubmissionStatus } from "@/app/admin/(protected)/submissions/actions";
 import type { SubmissionRow } from "@/lib/submissions";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";

@@ -1,8 +1,17 @@
 import { AdminNavLinks } from "@/components/admin/admin-nav";
+import { ADMIN_COOKIE, ADMIN_COOKIE_VALUE } from "@/lib/admin-auth";
+import { cookies } from "next/headers";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
-export default function AdminLayout({ children }: { children: ReactNode }) {
+export default async function AdminLayout({ children }: { children: ReactNode }) {
+  const cookieStore = await cookies();
+  const auth = cookieStore.get(ADMIN_COOKIE)?.value;
+  if (auth !== ADMIN_COOKIE_VALUE) {
+    redirect("/admin/login");
+  }
+
   return (
     <div className="min-h-screen bg-[#050506] text-zinc-100">
       <div className="flex min-h-screen">
