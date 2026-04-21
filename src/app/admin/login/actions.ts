@@ -1,15 +1,14 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import {
   ADMIN_COOKIE,
   ADMIN_COOKIE_OPTIONS,
   ADMIN_COOKIE_VALUE,
 } from "@/lib/admin-auth";
 
-export type LoginResult =
-  | { status: "success" }
-  | { status: "error"; message: string };
+export type LoginResult = { status: "error"; message: string };
 
 export async function loginAction(formData: FormData): Promise<LoginResult> {
   const adminPassword = process.env.ADMIN_PASSWORD;
@@ -28,5 +27,5 @@ export async function loginAction(formData: FormData): Promise<LoginResult> {
   const cookieStore = await cookies();
   cookieStore.set(ADMIN_COOKIE, ADMIN_COOKIE_VALUE, ADMIN_COOKIE_OPTIONS);
 
-  return { status: "success" };
+  redirect("/admin");
 }
