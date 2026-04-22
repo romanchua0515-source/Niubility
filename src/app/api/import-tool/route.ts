@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { ADMIN_COOKIE, ADMIN_COOKIE_VALUE } from "@/lib/admin-auth";
 import { createServiceClient } from "@/lib/supabase-service";
 
@@ -13,6 +14,31 @@ const SYSTEM_PROMPT =
   "You are a tool curator for Niubility, a Web3 and AI tools aggregator. Generate a tool listing based on the tool name provided. Use your knowledge about this tool to fill in accurate details. If you are not confident about a field, make a reasonable inference. Return ONLY valid JSON, no markdown, no explanation.";
 
 const LOG = "[import-tool]";
+
+// -----------------------------------------------------------------------------
+// Alias maps — bridge the AI's canonical names to current DB slugs.
+// Round 2 will rename DB slugs (e.g. "culture" → "media-community"), at which
+// point the matching alias entry can be deleted. Until then, the AI is taught
+// the canonical names in the prompt and the server translates on publish.
+// -----------------------------------------------------------------------------
+const CATEGORY_ALIASES: Record<string, string> = {
+  security: "security-stack",
+  "wallets-browsers": "wallets",
+  "media-community": "culture",
+};
+
+const SUBCATEGORY_ALIASES: Record<string, string> = {
+  "social-networks": "community",
+  "web3-social": "community",
+  "publishing-platforms": "media",
+  newsletters: "media",
+  newsletter: "media",
+};
+
+// Reverse map: DB slug → canonical name used in the prompt / by the client form.
+const DB_TO_CANONICAL_CATEGORY: Record<string, string> = Object.fromEntries(
+  Object.entries(CATEGORY_ALIASES).map(([canonical, db]) => [db, canonical]),
+);
 
 type Action = "generate" | "checkOnly" | "publish";
 
@@ -29,6 +55,14 @@ type GeneratedTool = {
   subcategory_slug: string;
   website_url: string;
 };
+
+type Taxonomy = {
+  categories: Array<{ slug: string; title: string }>;
+  categorySlugs: Set<string>;
+  subcategoriesByCategory: Map<string, Set<string>>;
+};
+
+type Resolved = { dbSlug: string; alias: string | null };
 
 function err(status: number, message: string, detail?: string) {
   return NextResponse.json(
@@ -76,62 +110,171 @@ function str(v: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-const FALLBACK_SUBCATEGORY = "ai-tools";
-
-/**
- * AI-generated `subcategory_slug` values sometimes invent leaves that don't
- * exist in the `subcategories` table (e.g. "ai-search"). Insertion would
- * fail on the foreign-key constraint, so we resolve to a valid slug:
- *   1. Use the proposed slug if it exists.
- *   2. Otherwise, fall back to the first subcategory under the given parent.
- *   3. Otherwise, use FALLBACK_SUBCATEGORY as a final safe default.
- */
-async function resolveSubcategorySlug(
-  svc: ReturnType<typeof createServiceClient>,
-  proposed: string,
-  categorySlug: string,
-): Promise<string> {
-  if (!svc) return proposed;
-
-  const { data: exact } = await svc
-    .from("subcategories")
-    .select("slug")
-    .eq("slug", proposed)
-    .maybeSingle();
-  if (exact?.slug) return exact.slug as string;
-
-  const { data: parent } = await svc
+// -----------------------------------------------------------------------------
+// Taxonomy — loaded once per request from Supabase via service role client.
+// Drives both prompt construction (what slugs to teach the AI) and strict
+// validation at publish time (what slugs the DB will actually accept).
+// -----------------------------------------------------------------------------
+async function loadTaxonomy(svc: SupabaseClient): Promise<Taxonomy> {
+  const { data: cats, error: catErr } = await svc
     .from("categories")
-    .select("id")
-    .eq("slug", categorySlug)
-    .maybeSingle();
-  if (parent?.id) {
-    const { data: siblings } = await svc
-      .from("subcategories")
-      .select("slug")
-      .eq("category_id", parent.id)
-      .limit(1);
-    const first = siblings?.[0]?.slug;
-    if (typeof first === "string" && first.length > 0) {
-      console.warn(
-        `${LOG} subcategory_slug "${proposed}" not found; falling back to "${first}" under category "${categorySlug}"`,
-      );
-      return first;
-    }
+    .select("id, slug, title");
+  if (catErr) throw new Error(`categories fetch failed: ${catErr.message}`);
+
+  const { data: subs, error: subErr } = await svc
+    .from("subcategories")
+    .select("slug, category_id");
+  if (subErr) throw new Error(`subcategories fetch failed: ${subErr.message}`);
+
+  const catsById = new Map<string, { slug: string; title: string }>();
+  const categorySlugs = new Set<string>();
+  for (const c of cats ?? []) {
+    const row = c as { id: string; slug: string; title: string };
+    catsById.set(row.id, { slug: row.slug, title: row.title });
+    categorySlugs.add(row.slug);
   }
 
-  console.warn(
-    `${LOG} subcategory_slug "${proposed}" not found and no sibling available; using "${FALLBACK_SUBCATEGORY}"`,
-  );
-  return FALLBACK_SUBCATEGORY;
+  const subcategoriesByCategory = new Map<string, Set<string>>();
+  for (const s of subs ?? []) {
+    const row = s as { slug: string; category_id: string };
+    const cat = catsById.get(row.category_id);
+    if (!cat) continue;
+    let set = subcategoriesByCategory.get(cat.slug);
+    if (!set) {
+      set = new Set();
+      subcategoriesByCategory.set(cat.slug, set);
+    }
+    set.add(row.slug);
+  }
+
+  return {
+    categories: Array.from(catsById.values()),
+    categorySlugs,
+    subcategoriesByCategory,
+  };
 }
 
 /**
- * A row matches if its website_url equals `url` OR its slug equals `slug`.
- * Done as two independent .eq() queries instead of a single .or() filter so
- * we don't have to worry about comma/URL-encoding quirks in PostgREST's
- * `or` param (URLs contain `/`, `&`, `?`, `=` that can break or-string parsing).
+ * Resolve a proposed category_slug to a DB-valid slug.
+ *  - If proposed is already a DB slug → return it unchanged.
+ *  - If proposed matches an alias entry whose target is a DB slug → use it.
+ *  - Else return null; caller rejects with 422.
  */
+function resolveCategorySlug(
+  proposed: string,
+  taxonomy: Taxonomy,
+): Resolved | null {
+  if (taxonomy.categorySlugs.has(proposed)) {
+    return { dbSlug: proposed, alias: null };
+  }
+  const aliased = CATEGORY_ALIASES[proposed];
+  if (aliased && taxonomy.categorySlugs.has(aliased)) {
+    return { dbSlug: aliased, alias: proposed };
+  }
+  return null;
+}
+
+/**
+ * Resolve a proposed subcategory_slug. Must be valid *under the resolved
+ * category's* subcategory set — a subcategory slug that exists globally but
+ * under a different parent is rejected (prevents cross-category orphans).
+ */
+function resolveSubcategorySlug(
+  proposed: string,
+  categoryDbSlug: string,
+  taxonomy: Taxonomy,
+): Resolved | null {
+  const valid = taxonomy.subcategoriesByCategory.get(categoryDbSlug);
+  if (!valid || valid.size === 0) return null;
+  if (valid.has(proposed)) {
+    return { dbSlug: proposed, alias: null };
+  }
+  const aliased = SUBCATEGORY_ALIASES[proposed];
+  if (aliased && valid.has(aliased)) {
+    return { dbSlug: aliased, alias: proposed };
+  }
+  return null;
+}
+
+/**
+ * Build the per-call user prompt. Category list uses canonical names (alias
+ * keys where an alias exists, otherwise the DB slug). Subcategory list shows
+ * the real DB slugs under each canonical category so the AI can't invent new
+ * leaves.
+ */
+function buildUserPrompt(
+  name: string,
+  url: string,
+  taxonomy: Taxonomy,
+): string {
+  const categoryPairs = taxonomy.categories.map((c) => ({
+    canonical: DB_TO_CANONICAL_CATEGORY[c.slug] ?? c.slug,
+    dbSlug: c.slug,
+  }));
+  const categoryList = categoryPairs.map((p) => p.canonical).join(", ");
+  const subcategoryBlock = categoryPairs
+    .map(({ canonical, dbSlug }) => {
+      const subs = Array.from(
+        taxonomy.subcategoriesByCategory.get(dbSlug) ?? [],
+      );
+      return `- ${canonical}: ${subs.length > 0 ? subs.join(", ") : "(no subcategories defined)"}`;
+    })
+    .join("\n");
+
+  return `Tool name: ${name}
+Official URL: ${url}
+
+Valid category_slug values: ${categoryList}
+
+Valid subcategory_slug per category:
+${subcategoryBlock}
+
+Return ONLY this JSON structure:
+{
+  "name": "Tool name in English",
+  "name_zh": "工具中文名称",
+  "description": "One paragraph description in English, max 150 chars",
+  "description_zh": "中文描述，最多150字",
+  "best_for": "Who this tool is best for, max 80 chars",
+  "best_for_zh": "最适合谁使用，最多80字",
+  "pricing": "Free | Freemium | Paid | Enterprise",
+  "tags": ["tag1", "tag2", "tag3"],
+  "category_slug": "one value from the category list above",
+  "subcategory_slug": "one value from the subcategory list for the chosen category",
+  "website_url": "${url}"
+}`;
+}
+
+/**
+ * Structured single-line log for every import attempt. One line per request
+ * makes it trivial to `grep result=FAIL` in Vercel logs.
+ */
+function logAttempt(fields: {
+  action: Action;
+  name: string;
+  proposedCat: string | null;
+  finalCat: string | null;
+  proposedSub: string | null;
+  finalSub: string | null;
+  result: string;
+}) {
+  const q = (v: string | null) => `"${v ?? "-"}"`;
+  console.log(
+    `${LOG} ${fields.action} | name=${q(fields.name)} | ` +
+      `proposed_cat=${q(fields.proposedCat)} | final_cat=${q(fields.finalCat)} | ` +
+      `proposed_sub=${q(fields.proposedSub)} | final_sub=${q(fields.finalSub)} | ` +
+      `result=${fields.result}`,
+  );
+}
+
+function logAlias(kind: "category" | "subcategory", from: string, to: string) {
+  console.log(`${LOG} alias-applied: ${kind} "${from}" → "${to}"`);
+}
+
+// -----------------------------------------------------------------------------
+// Duplicate detection — two independent .eq() queries (PostgREST's `or` param
+// chokes on URLs with `/`, `&`, `?`, `=`).
+// -----------------------------------------------------------------------------
 async function findDuplicate(
   url: string,
   slug?: string,
@@ -186,7 +329,6 @@ function resolveAction(body: Record<string, unknown>): Action {
   if (explicit === "generate" || explicit === "checkOnly" || explicit === "publish") {
     return explicit;
   }
-  // Backwards-compat: older clients used { checkOnly: true } without an action.
   if (body.checkOnly === true) return "checkOnly";
   return "generate";
 }
@@ -224,29 +366,19 @@ export async function POST(req: NextRequest) {
     }
 
     const action = resolveAction(body);
-    console.log(`${LOG} action=${action}`);
 
-    // --------------------------------------------------------------
-    // action: "publish" — server-side insert via service role client
-    // (bypasses RLS so the admin console doesn't need anon write grants)
-    // --------------------------------------------------------------
     if (action === "publish") {
       return handlePublish(body);
     }
 
-    // ---- The remaining actions (generate + checkOnly) need a url ----
     const url = str(body.url);
     if (!url || !/^https?:\/\//i.test(url)) {
       return err(400, "Body must include a valid http(s) url");
     }
 
-    // If the client supplied a name (batch does; legacy `{checkOnly: true, url}`
-    // may not), derive the slug and also block slug collisions so we never hit
-    // "duplicate key value violates unique constraint tools_slug_key".
     const incomingName = str(body.name);
     const incomingSlug = incomingName ? slugify(incomingName) : undefined;
 
-    // Duplicate detection runs for both checkOnly and generate.
     const existing = await findDuplicate(url, incomingSlug);
     if (existing) {
       console.log(
@@ -287,26 +419,35 @@ export async function POST(req: NextRequest) {
 }
 
 // -----------------------------------------------------------------------------
-// handleGenerate — Claude API call that drafts a tool listing from name+url
+// handleGenerate — loads taxonomy, builds a dynamic prompt, calls Anthropic.
+// The AI's response is returned to the client *without* alias resolution so
+// the form stays in canonical-slug space (matching CATEGORY_OPTIONS on the
+// client). The publish path does the final resolution + strict validation.
+// We still preview-validate here so the log flags bad AI output early.
 // -----------------------------------------------------------------------------
 async function handleGenerate(name: string, url: string, apiKey: string) {
-  const userPrompt = `Tool name: ${name}
-Official URL: ${url}
+  const svc = createServiceClient();
+  if (!svc) {
+    console.error(
+      `${LOG} 500 — service client unavailable; cannot load taxonomy for prompt`,
+    );
+    return err(
+      500,
+      "Server is missing Supabase service role credentials",
+      "SUPABASE_SERVICE_ROLE_KEY is required to build the category prompt",
+    );
+  }
 
-Return ONLY this JSON structure:
-{
-  "name": "Tool name in English",
-  "name_zh": "工具中文名称",
-  "description": "One paragraph description in English, max 150 chars",
-  "description_zh": "中文描述，最多150字",
-  "best_for": "Who this tool is best for, max 80 chars",
-  "best_for_zh": "最适合谁使用，最多80字",
-  "pricing": "Free | Freemium | Paid | Enterprise",
-  "tags": ["tag1", "tag2", "tag3"],
-  "category_slug": "ai | research-insights | security | wallets-browsers | jobs | media-community",
-  "subcategory_slug": "suggest based on category",
-  "website_url": "${url}"
-}`;
+  let taxonomy: Taxonomy;
+  try {
+    taxonomy = await loadTaxonomy(svc);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(`${LOG} 500 — taxonomy load failed:`, msg);
+    return err(500, "Could not load category taxonomy", msg);
+  }
+
+  const userPrompt = buildUserPrompt(name, url, taxonomy);
 
   const requestBody = {
     model: MODEL,
@@ -314,10 +455,6 @@ Return ONLY this JSON structure:
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: userPrompt }],
   };
-
-  console.log(
-    `${LOG} calling Anthropic — endpoint=${ANTHROPIC_URL} model=${MODEL}`,
-  );
 
   let aiText = "";
   try {
@@ -330,10 +467,6 @@ Return ONLY this JSON structure:
       },
       body: JSON.stringify(requestBody),
     });
-
-    console.log(
-      `${LOG} Anthropic response status=${aiRes.status} ${aiRes.statusText}`,
-    );
 
     if (!aiRes.ok) {
       const rawText = await aiRes.text();
@@ -349,6 +482,15 @@ Return ONLY this JSON structure:
       } catch {
         detail = rawText.slice(0, 500);
       }
+      logAttempt({
+        action: "generate",
+        name,
+        proposedCat: null,
+        finalCat: null,
+        proposedSub: null,
+        finalSub: null,
+        result: `FAIL_ANTHROPIC_${aiRes.status}`,
+      });
       return err(
         500,
         "AI generation failed",
@@ -366,11 +508,29 @@ Return ONLY this JSON structure:
       .trim();
     if (!aiText) {
       console.error(`${LOG} Anthropic returned empty content`, aiJson);
+      logAttempt({
+        action: "generate",
+        name,
+        proposedCat: null,
+        finalCat: null,
+        proposedSub: null,
+        finalSub: null,
+        result: "FAIL_EMPTY_AI",
+      });
       return err(500, "AI generation failed", "empty content in response");
     }
   } catch (e) {
     const msg = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
     console.error(`${LOG} Anthropic fetch threw:`, msg, e);
+    logAttempt({
+      action: "generate",
+      name,
+      proposedCat: null,
+      finalCat: null,
+      proposedSub: null,
+      finalSub: null,
+      result: "FAIL_FETCH",
+    });
     return err(500, "AI generation failed", msg);
   }
 
@@ -380,18 +540,45 @@ Return ONLY this JSON structure:
       `${LOG} 422 — could not extract JSON from AI text:`,
       aiText.slice(0, 500),
     );
+    logAttempt({
+      action: "generate",
+      name,
+      proposedCat: null,
+      finalCat: null,
+      proposedSub: null,
+      finalSub: null,
+      result: "FAIL_PARSE",
+    });
     return err(422, "Could not parse AI response");
   }
 
   parsed.website_url = url;
-  console.log(`${LOG} 200 — generated tool "${parsed.name}"`);
+
+  const proposedCat = str(parsed.category_slug);
+  const proposedSub = str(parsed.subcategory_slug);
+  const catRes = proposedCat ? resolveCategorySlug(proposedCat, taxonomy) : null;
+  const subRes =
+    catRes && proposedSub
+      ? resolveSubcategorySlug(proposedSub, catRes.dbSlug, taxonomy)
+      : null;
+
+  logAttempt({
+    action: "generate",
+    name: parsed.name ?? name,
+    proposedCat,
+    finalCat: catRes?.dbSlug ?? null,
+    proposedSub,
+    finalSub: subRes?.dbSlug ?? null,
+    result: catRes && subRes ? "OK" : "WARN_UNRESOLVED",
+  });
+
   return NextResponse.json(parsed, { status: 200 });
 }
 
 // -----------------------------------------------------------------------------
-// handlePublish — takes already-reviewed tool data and inserts via service role
-// client. All batch/single inserts now route through here so the anon key never
-// tries a write (RLS keeps public anon read-only).
+// handlePublish — strict validation before insert. No silent fallback: invalid
+// slugs are rejected with 422 so the failure surfaces in the UI instead of
+// silently producing orphaned tools under the wrong category.
 // -----------------------------------------------------------------------------
 async function handlePublish(body: Record<string, unknown>) {
   const svc = createServiceClient();
@@ -406,12 +593,20 @@ async function handlePublish(body: Record<string, unknown>) {
     );
   }
 
+  let taxonomy: Taxonomy;
+  try {
+    taxonomy = await loadTaxonomy(svc);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(`${LOG} 500 — taxonomy load failed:`, msg);
+    return err(500, "Could not load category taxonomy", msg);
+  }
+
   const name = str(body.name);
   const description = str(body.description);
   const website_url = str(body.website_url);
-  const category_slug = str(body.category_slug);
-  const proposed_subcategory_slug =
-    str(body.subcategory_slug) ?? FALLBACK_SUBCATEGORY;
+  const proposedCat = str(body.category_slug);
+  const proposedSub = str(body.subcategory_slug);
   const pricing = str(body.pricing) ?? "Unknown";
   const best_for = str(body.best_for) ?? "TBD";
 
@@ -420,23 +615,66 @@ async function handlePublish(body: Record<string, unknown>) {
   if (!website_url || !/^https?:\/\//i.test(website_url)) {
     return err(400, "publish: website_url must be a valid http(s) URL");
   }
-  if (!category_slug) return err(400, "publish: category_slug is required");
+  if (!proposedCat) return err(400, "publish: category_slug is required");
+  if (!proposedSub) return err(400, "publish: subcategory_slug is required");
 
-  const subcategory_slug = await resolveSubcategorySlug(
-    svc,
-    proposed_subcategory_slug,
-    category_slug,
-  );
+  const catRes = resolveCategorySlug(proposedCat, taxonomy);
+  if (!catRes) {
+    const validList = Array.from(taxonomy.categorySlugs)
+      .map((db) => DB_TO_CANONICAL_CATEGORY[db] ?? db)
+      .join(", ");
+    logAttempt({
+      action: "publish",
+      name,
+      proposedCat,
+      finalCat: null,
+      proposedSub,
+      finalSub: null,
+      result: "FAIL_INVALID_CATEGORY",
+    });
+    return err(
+      422,
+      `Invalid category_slug "${proposedCat}". Valid options: ${validList}`,
+    );
+  }
+  if (catRes.alias) logAlias("category", catRes.alias, catRes.dbSlug);
 
-  // Re-check duplicate server-side — defends against concurrent inserts AND
-  // against slug collisions (two tools with different URLs whose names
-  // slugify to the same value would violate tools_slug_key otherwise).
+  const subRes = resolveSubcategorySlug(proposedSub, catRes.dbSlug, taxonomy);
+  if (!subRes) {
+    const validSubs = Array.from(
+      taxonomy.subcategoriesByCategory.get(catRes.dbSlug) ?? [],
+    ).join(", ");
+    logAttempt({
+      action: "publish",
+      name,
+      proposedCat,
+      finalCat: catRes.dbSlug,
+      proposedSub,
+      finalSub: null,
+      result: "FAIL_INVALID_SUBCATEGORY",
+    });
+    return err(
+      422,
+      `Invalid subcategory_slug "${proposedSub}" for category "${catRes.dbSlug}". Valid options: ${validSubs || "(none)"}`,
+    );
+  }
+  if (subRes.alias) logAlias("subcategory", subRes.alias, subRes.dbSlug);
+
+  const category_slug = catRes.dbSlug;
+  const subcategory_slug = subRes.dbSlug;
+
   const slug = slugify(name);
   const existing = await findDuplicate(website_url, slug);
   if (existing) {
-    console.log(
-      `${LOG} 409 — publish blocked on ${existing.conflict} collision with "${existing.name}"`,
-    );
+    logAttempt({
+      action: "publish",
+      name,
+      proposedCat,
+      finalCat: category_slug,
+      proposedSub,
+      finalSub: subcategory_slug,
+      result: `DUPLICATE_${existing.conflict.toUpperCase()}`,
+    });
     return NextResponse.json(
       {
         error: "duplicate",
@@ -479,8 +717,6 @@ async function handlePublish(body: Record<string, unknown>) {
     quick_pick_order: 0,
   };
 
-  // Only include name_zh when it's a real value, so inserts still succeed
-  // even if the column is missing from an older DB schema.
   const nameZh = str(body.name_zh);
   if (nameZh) payload.name_zh = nameZh;
 
@@ -492,10 +728,28 @@ async function handlePublish(body: Record<string, unknown>) {
 
   if (dbError) {
     console.error(`${LOG} publish insert failed:`, dbError.message);
+    logAttempt({
+      action: "publish",
+      name,
+      proposedCat,
+      finalCat: category_slug,
+      proposedSub,
+      finalSub: subcategory_slug,
+      result: `FAIL_DB_${dbError.code ?? "UNKNOWN"}`,
+    });
     return err(500, "Publish failed", dbError.message);
   }
 
-  console.log(`${LOG} 200 — published "${inserted?.name ?? name}"`);
+  logAttempt({
+    action: "publish",
+    name: inserted?.name ?? name,
+    proposedCat,
+    finalCat: category_slug,
+    proposedSub,
+    finalSub: subcategory_slug,
+    result: "OK",
+  });
+
   return NextResponse.json(
     { ok: true, id: inserted?.id, slug: inserted?.slug, name: inserted?.name },
     { status: 200 },
