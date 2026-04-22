@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Check, Loader2, Play, Upload, X } from "lucide-react";
 
@@ -108,7 +107,6 @@ async function publishViaApi(
 type Tab = "single" | "batch";
 
 export function ImportToolButton() {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("single");
   const [sessionToken, setSessionToken] = useState<string | null>(null);
@@ -227,13 +225,25 @@ export function ImportToolButton() {
       {tab === "single" ? (
         <SinglePanel
           authToken={sessionToken}
-          onPublished={() => router.refresh()}
+          onPublished={() => {
+            /* /admin/tools is server-revalidated inside handlePublish via
+             * revalidatePath, so the next navigation shows fresh data. We
+             * intentionally do NOT call router.refresh() here — that would
+             * force an RSC re-render of the protected layout, and Vercel's
+             * edge→function cookie-drop bug occasionally makes the layout
+             * redirect to /admin/login for a frame. The success banner is
+             * enough acknowledgement. */
+          }}
           onBack={() => setOpen(false)}
         />
       ) : (
         <BatchPanel
           authToken={sessionToken}
-          onDone={() => router.refresh()}
+          onDone={() => {
+            /* Same as above — per-row status in the batch UI already tells
+             * the user which tools were published. Avoid router.refresh()
+             * to prevent the login flicker. */
+          }}
         />
       )}
     </div>

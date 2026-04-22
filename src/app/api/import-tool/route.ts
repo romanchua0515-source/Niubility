@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ADMIN_COOKIE, ADMIN_COOKIE_VALUE } from "@/lib/admin-auth";
 import { createServiceClient } from "@/lib/supabase-service";
@@ -767,6 +768,14 @@ async function handlePublish(body: Record<string, unknown>) {
     finalSub: subcategory_slug,
     result: "OK",
   });
+
+  // Server-side cache invalidation — the client intentionally does NOT call
+  // router.refresh() anymore because that forces the protected layout to
+  // re-run server-side, and Vercel's edge→function cookie-drop bug
+  // occasionally makes it redirect to /admin/login for a frame. Marking the
+  // path stale lets the list refresh on the user's next navigation without
+  // the flicker.
+  revalidatePath("/admin/tools");
 
   return NextResponse.json(
     { ok: true, id: inserted?.id, slug: inserted?.slug, name: inserted?.name },
