@@ -113,24 +113,30 @@ export function ImportToolButton() {
   const [tab, setTab] = useState<Tab>("single");
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [tokenError, setTokenError] = useState<string | null>(null);
-  const [loadingToken, setLoadingToken] = useState(false);
 
-  // Fetch the bearer token the first time the panel is opened. The cookie is
-  // still authoritative for this one request (single call, no batch), and
-  // after it succeeds every subsequent import-tool call uses the token.
+  // Fetch the bearer token the first time the panel is opened. We rely on
+  // AbortController for cancellation instead of a `cancelled` flag: the
+  // previous flag-based version combined with `loadingToken` in the dep
+  // array formed a feedback loop — setLoadingToken(true) retriggered the
+  // effect, whose cleanup set cancelled=true, which made the fetch's
+  // finally skip the setLoadingToken(false) reset and left the UI stuck on
+  // "Preparing secure session…" forever. Deps intentionally do NOT include
+  // any state this effect writes.
   useEffect(() => {
-    if (!open || sessionToken || loadingToken) return;
-    let cancelled = false;
-    setLoadingToken(true);
+    if (!open || sessionToken) return;
+
+    console.log("[import-tool-button] useEffect fired, fetching token");
     setTokenError(null);
+    const controller = new AbortController();
+
     (async () => {
       try {
         const res = await fetch("/api/admin/session-token", {
           method: "GET",
           credentials: "include",
           cache: "no-store",
+          signal: controller.signal,
         });
-        if (cancelled) return;
         if (res.status === 401) {
           setTokenError("Session expired, please re-login");
           return;
@@ -142,22 +148,20 @@ export function ImportToolButton() {
         const data = (await res.json().catch(() => null)) as
           | { token?: string; error?: string }
           | null;
-        if (cancelled) return;
         if (typeof data?.token === "string" && data.token.length > 0) {
+          console.log("[import-tool-button] token set, state updated");
           setSessionToken(data.token);
         } else {
           setTokenError(data?.error ?? "Invalid token response");
         }
-      } catch {
-        if (!cancelled) setTokenError("Network error fetching session token");
-      } finally {
-        if (!cancelled) setLoadingToken(false);
+      } catch (err) {
+        if ((err as { name?: string })?.name === "AbortError") return;
+        setTokenError("Network error fetching session token");
       }
     })();
-    return () => {
-      cancelled = true;
-    };
-  }, [open, sessionToken, loadingToken]);
+
+    return () => controller.abort();
+  }, [open, sessionToken]);
 
   if (!open) {
     return (
