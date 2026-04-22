@@ -202,10 +202,16 @@ export async function POST(req: NextRequest) {
       adminPassword !== "" &&
       authHeader === `Bearer ${adminPassword}`;
     const cookieStore = await cookies();
-    const cookieOk =
-      cookieStore.get(ADMIN_COOKIE)?.value === ADMIN_COOKIE_VALUE;
+    const adminCookieValue = cookieStore.get(ADMIN_COOKIE)?.value;
+    const cookieOk = adminCookieValue === ADMIN_COOKIE_VALUE;
     if (!bearerOk && !cookieOk) {
-      console.warn(`${LOG} 401 — no valid bearer or admin cookie`);
+      const cookieNames = cookieStore.getAll().map((c) => c.name);
+      console.warn(
+        `${LOG} 401 — no valid bearer or admin cookie. ` +
+          `cookies_present=[${cookieNames.join(",")}] ` +
+          `admin_cookie_seen=${adminCookieValue !== undefined} ` +
+          `has_auth_header=${authHeader.length > 0}`,
+      );
       return err(401, "Unauthorized");
     }
 
