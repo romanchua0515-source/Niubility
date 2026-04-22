@@ -344,13 +344,31 @@ export async function POST(req: NextRequest) {
       adminPassword !== "" &&
       authHeader === `Bearer ${adminPassword}`;
     const cookieStore = await cookies();
+    const allCookies = cookieStore.getAll();
+    const adminAuthCookies = allCookies.filter((c) => c.name === ADMIN_COOKIE);
     const adminCookieValue = cookieStore.get(ADMIN_COOKIE)?.value;
     const cookieOk = adminCookieValue === ADMIN_COOKIE_VALUE;
+
+    // Diagnostic log — runs on EVERY request (PASS and FAIL) so we can diff
+    // the PASS request just before a FAIL and see what actually changed in
+    // the cookie jar at the moment the 401 started happening. Keep the 401
+    // warn below intact so existing grep alerts still fire on failure.
+    console.log(
+      `${LOG} AUTH-CHECK | ` +
+        `result=${cookieOk || bearerOk ? "PASS" : "FAIL"} | ` +
+        `total_cookies=${allCookies.length} | ` +
+        `cookie_names=[${allCookies.map((c) => c.name).join(",")}] | ` +
+        `admin_auth_count=${adminAuthCookies.length} | ` +
+        `admin_auth_values=[${adminAuthCookies.map((c) => `"${c.value}"`).join(",")}] | ` +
+        `has_bearer=${authHeader.length > 0 ? "yes" : "no"} | ` +
+        `region=${process.env.VERCEL_REGION ?? "unknown"} | ` +
+        `request_id=${req.headers.get("x-vercel-id") ?? "unknown"}`,
+    );
+
     if (!bearerOk && !cookieOk) {
-      const cookieNames = cookieStore.getAll().map((c) => c.name);
       console.warn(
         `${LOG} 401 — no valid bearer or admin cookie. ` +
-          `cookies_present=[${cookieNames.join(",")}] ` +
+          `cookies_present=[${allCookies.map((c) => c.name).join(",")}] ` +
           `admin_cookie_seen=${adminCookieValue !== undefined} ` +
           `has_auth_header=${authHeader.length > 0}`,
       );
