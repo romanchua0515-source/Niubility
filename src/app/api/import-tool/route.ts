@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { ADMIN_COOKIE, ADMIN_COOKIE_VALUE } from "@/lib/admin-auth";
 import { createServiceClient } from "@/lib/supabase-service";
 
@@ -200,8 +201,9 @@ export async function POST(req: NextRequest) {
       adminPassword !== undefined &&
       adminPassword !== "" &&
       authHeader === `Bearer ${adminPassword}`;
+    const cookieStore = await cookies();
     const cookieOk =
-      req.cookies.get(ADMIN_COOKIE)?.value === ADMIN_COOKIE_VALUE;
+      cookieStore.get(ADMIN_COOKIE)?.value === ADMIN_COOKIE_VALUE;
     if (!bearerOk && !cookieOk) {
       console.warn(`${LOG} 401 — no valid bearer or admin cookie`);
       return err(401, "Unauthorized");
