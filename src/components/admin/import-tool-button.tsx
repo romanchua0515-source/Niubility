@@ -1,8 +1,20 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Loader2, Play, Upload, X } from "lucide-react";
+
+/**
+ * Build headers for every /api/import-tool call. We send the bearer token
+ * alongside cookies so the request authenticates even when Vercel's edge →
+ * function routing drops the admin_auth cookie mid-batch.
+ */
+function authHeaders(token: string): HeadersInit {
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+}
 
 type GeneratedTool = {
   name: string;
@@ -65,11 +77,14 @@ function toFormState(tool: GeneratedTool): FormState {
  * The server inserts via the service-role client, bypassing RLS.
  * Returns { ok: true } on success, or throws with the server's error message.
  */
-async function publishViaApi(tool: GeneratedTool & { affiliate_url?: string }) {
+async function publishViaApi(
+  tool: GeneratedTool & { affiliate_url?: string },
+  token: string,
+) {
   const res = await fetch("/api/import-tool", {
     method: "POST",
     credentials: "include",
-    headers: { "content-type": "application/json" },
+    headers: authHeaders(token),
     body: JSON.stringify({ action: "publish", ...tool }),
   });
   const data = (await res.json().catch(() => null)) as
@@ -96,6 +111,53 @@ export function ImportToolButton() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("single");
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [tokenError, setTokenError] = useState<string | null>(null);
+  const [loadingToken, setLoadingToken] = useState(false);
+
+  // Fetch the bearer token the first time the panel is opened. The cookie is
+  // still authoritative for this one request (single call, no batch), and
+  // after it succeeds every subsequent import-tool call uses the token.
+  useEffect(() => {
+    if (!open || sessionToken || loadingToken) return;
+    let cancelled = false;
+    setLoadingToken(true);
+    setTokenError(null);
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/session-token", {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (cancelled) return;
+        if (res.status === 401) {
+          setTokenError("Session expired, please re-login");
+          return;
+        }
+        if (!res.ok) {
+          setTokenError(`Could not obtain session token (${res.status})`);
+          return;
+        }
+        const data = (await res.json().catch(() => null)) as
+          | { token?: string; error?: string }
+          | null;
+        if (cancelled) return;
+        if (typeof data?.token === "string" && data.token.length > 0) {
+          setSessionToken(data.token);
+        } else {
+          setTokenError(data?.error ?? "Invalid token response");
+        }
+      } catch {
+        if (!cancelled) setTokenError("Network error fetching session token");
+      } finally {
+        if (!cancelled) setLoadingToken(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, sessionToken, loadingToken]);
 
   if (!open) {
     return (
@@ -133,6 +195,18 @@ export function ImportToolButton() {
         </button>
       </div>
 
+      {tokenError && (
+        <p className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+          {tokenError}
+        </p>
+      )}
+      {!sessionToken && !tokenError && (
+        <p className="rounded-md border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-xs text-zinc-400">
+          <Loader2 className="mr-1.5 inline h-3 w-3 animate-spin text-emerald-400" />
+          Preparing secure session…
+        </p>
+      )}
+
       <div className="inline-flex rounded-lg border border-zinc-800 bg-zinc-950/60 p-0.5 text-xs">
         <TabButton
           active={tab === "single"}
@@ -148,11 +222,15 @@ export function ImportToolButton() {
 
       {tab === "single" ? (
         <SinglePanel
+          authToken={sessionToken}
           onPublished={() => router.refresh()}
           onBack={() => setOpen(false)}
         />
       ) : (
-        <BatchPanel onDone={() => router.refresh()} />
+        <BatchPanel
+          authToken={sessionToken}
+          onDone={() => router.refresh()}
+        />
       )}
     </div>
   );
@@ -187,11 +265,12 @@ function TabButton({
 // =============================================================================
 
 type SinglePanelProps = {
+  authToken: string | null;
   onPublished: () => void;
   onBack: () => void;
 };
 
-function SinglePanel({ onPublished, onBack }: SinglePanelProps) {
+function SinglePanel({ authToken, onPublished, onBack }: SinglePanelProps) {
   const [toolName, setToolName] = useState("");
   const [url, setUrl] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -202,7 +281,10 @@ function SinglePanel({ onPublished, onBack }: SinglePanelProps) {
   const [publishedName, setPublishedName] = useState<string | null>(null);
 
   const canGenerate =
-    toolName.trim().length > 0 && url.trim().length > 0 && !generating;
+    toolName.trim().length > 0 &&
+    url.trim().length > 0 &&
+    !generating &&
+    authToken !== null;
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
@@ -222,12 +304,16 @@ function SinglePanel({ onPublished, onBack }: SinglePanelProps) {
       setError("Enter a valid http(s) URL first.");
       return;
     }
+    if (!authToken) {
+      setError("Session token not ready yet — please retry in a moment.");
+      return;
+    }
     setGenerating(true);
     try {
       const res = await fetch("/api/import-tool", {
         method: "POST",
         credentials: "include",
-        headers: { "content-type": "application/json" },
+        headers: authHeaders(authToken),
         body: JSON.stringify({
           action: "generate",
           name: trimmedName,
@@ -266,6 +352,10 @@ function SinglePanel({ onPublished, onBack }: SinglePanelProps) {
 
   async function handlePublish() {
     if (!form) return;
+    if (!authToken) {
+      setError("Session token not ready yet — please retry in a moment.");
+      return;
+    }
     setError(null);
     setDuplicate(null);
     setPublishing(true);
@@ -274,20 +364,23 @@ function SinglePanel({ onPublished, onBack }: SinglePanelProps) {
         .split(",")
         .map((t) => t.trim())
         .filter((t) => t.length > 0);
-      await publishViaApi({
-        name: form.name,
-        name_zh: form.name_zh,
-        description: form.description,
-        description_zh: form.description_zh,
-        best_for: form.best_for,
-        best_for_zh: form.best_for_zh,
-        pricing: form.pricing,
-        tags,
-        category_slug: form.category_slug,
-        subcategory_slug: form.subcategory_slug,
-        website_url: form.website_url,
-        affiliate_url: form.affiliate_url,
-      });
+      await publishViaApi(
+        {
+          name: form.name,
+          name_zh: form.name_zh,
+          description: form.description,
+          description_zh: form.description_zh,
+          best_for: form.best_for,
+          best_for_zh: form.best_for_zh,
+          pricing: form.pricing,
+          tags,
+          category_slug: form.category_slug,
+          subcategory_slug: form.subcategory_slug,
+          website_url: form.website_url,
+          affiliate_url: form.affiliate_url,
+        },
+        authToken,
+      );
       setPublishedName(form.name);
       setForm(null);
       setUrl("");
@@ -449,9 +542,9 @@ async function wait(ms: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
 
-type BatchPanelProps = { onDone: () => void };
+type BatchPanelProps = { authToken: string | null; onDone: () => void };
 
-function BatchPanel({ onDone }: BatchPanelProps) {
+function BatchPanel({ authToken, onDone }: BatchPanelProps) {
   const [input, setInput] = useState("");
   const [rows, setRows] = useState<BatchRow[] | null>(null);
   const [running, setRunning] = useState(false);
@@ -467,6 +560,10 @@ function BatchPanel({ onDone }: BatchPanelProps) {
   }
 
   async function handleStart() {
+    if (!authToken) {
+      setSummary("Session token not ready — please retry in a moment.");
+      return;
+    }
     const parsed = parseBatchInput(input);
     if (parsed.length === 0) {
       setRows(null);
@@ -503,7 +600,7 @@ function BatchPanel({ onDone }: BatchPanelProps) {
         const checkRes = await fetch("/api/import-tool", {
           method: "POST",
           credentials: "include",
-          headers: { "content-type": "application/json" },
+          headers: authHeaders(authToken),
           body: JSON.stringify({
             action: "checkOnly",
             url: row.url,
@@ -554,7 +651,7 @@ function BatchPanel({ onDone }: BatchPanelProps) {
         const genRes = await fetch("/api/import-tool", {
           method: "POST",
           credentials: "include",
-          headers: { "content-type": "application/json" },
+          headers: authHeaders(authToken),
           body: JSON.stringify({
             action: "generate",
             name: row.name,
@@ -589,7 +686,7 @@ function BatchPanel({ onDone }: BatchPanelProps) {
         }
 
         try {
-          await publishViaApi({ ...genData, website_url: row.url });
+          await publishViaApi({ ...genData, website_url: row.url }, authToken);
           updateRow(row.id, {
             status: "published",
             message: genData.name,
@@ -649,7 +746,7 @@ function BatchPanel({ onDone }: BatchPanelProps) {
       <button
         type="button"
         onClick={handleStart}
-        disabled={running || input.trim().length === 0}
+        disabled={running || input.trim().length === 0 || authToken === null}
         className="inline-flex items-center justify-center gap-1.5 rounded-md border border-emerald-500/70 bg-emerald-500/90 px-4 py-2 text-sm font-medium text-emerald-950 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-70"
       >
         {running ? (
